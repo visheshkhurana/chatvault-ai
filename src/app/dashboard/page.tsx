@@ -135,6 +135,7 @@ export default function DashboardPage() {
                                             <h1 className="text-xl font-bold text-gray-900">ChatVault AI</h1>
                                 </div>
                                 <div className="flex items-center gap-4">
+                                            <a href="/dashboard/connect" className="text-sm text-green-600 hover:text-green-700 font-medium">Connect WhatsApp</a>
                                             <span className="text-sm text-gray-500">{user?.email}</span>
                                             <button onClick={handleSignOut} className="text-gray-500 hover:text-gray-700">
                                                           <LogOut className="w-5 h-5" />
