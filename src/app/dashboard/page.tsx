@@ -100,7 +100,7 @@ export default function DashboardPage() {
                           }),
                 });
                 const data = await response.json();
-                setSearchResult(data);
+                setSearchResult({ answer: data.answer || data.error || 'No results found', citations: data.citations || [], relatedAttachments: data.relatedAttachments || [] });
         } catch (err) {
                 console.error('Search error:', err);
         }
