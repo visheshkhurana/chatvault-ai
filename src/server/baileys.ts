@@ -232,6 +232,26 @@ async function startBaileys() {
 // Message handling
 // ================================================================
 
+// Map Baileys content types to DB message_type enum
+function mapMessageType(contentType: string | undefined): string {
+  const map: Record<string, string> = {
+    'conversation': 'text',
+    'extendedTextMessage': 'text',
+    'imageMessage': 'image',
+    'videoMessage': 'video',
+    'audioMessage': 'audio',
+    'documentMessage': 'document',
+    'stickerMessage': 'sticker',
+    'locationMessage': 'location',
+    'contactMessage': 'contact',
+    'contactsArrayMessage': 'contact',
+    'reactionMessage': 'reaction',
+    'protocolMessage': 'system',
+    'senderKeyDistributionMessage': 'system',
+  };
+  return map[contentType || ''] || 'text';
+}
+
 async function handleMessage(msg: proto.IWebMessageInfo, isHistory = false) {
     if (!sock || !msg.message) return;
     const remoteJid = msg.key.remoteJid || '';
@@ -262,7 +282,7 @@ async function handleMessage(msg: proto.IWebMessageInfo, isHistory = false) {
               contact_id: contactId,
               wa_message_id: msg.key.id || '',
               sender_phone: senderPhone,
-                          message_type: contentType || 'text',
+                          message_type: mapMessageType(contentType),
               sender_name: msg.pushName || senderPhone,
               text_content: text || '',
               is_from_me: msg.key.fromMe || false,
