@@ -64,13 +64,13 @@ export default function ConnectPage() {
                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500" />
                     </div>
                 ) : (
-                    <div className="relative mx-auto" style={{ width: 280, height: 280 }}>
+                    <div className="relative mx-auto" style={{ width: 300, height: 300 }}>
                         <iframe
                             key={qrKey}
-                            src={`${BRIDGE_URL}/qr`}
+                            src={`${BRIDGE_URL}/qr?embed=1`}
                             className="w-full h-full border-0 rounded-xl"
                             title="WhatsApp QR Code"
-                            style={{ transform: 'scale(0.75)', transformOrigin: 'top left', width: '373px', height: '373px' }}
+                            style={{ width: '100%', height: '100%' }}
                         />
                     </div>
                 )}
