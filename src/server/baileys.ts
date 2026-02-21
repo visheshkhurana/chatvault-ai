@@ -73,15 +73,21 @@ async function ensureOwnerUser(): Promise<string> {
         return ownerUserId!;
   }
 
-  // No user exists - create one
-  const { data: newUser, error } = await supabase
-      .from('users')
-      .insert({
-              phone: phoneNumber,
-              display_name: sock.user?.name || 'WhatsApp User',
-      })
-      .select('id')
-      .single();
+// No user exists – create one. Look up auth user first.
+        const { data: authUsers } = await supabase.auth.admin.listUsers();
+        const authUser = authUsers?.users?.[0];
+        if (!authUser) throw new Error('No auth user found in system');
+
+        const { data: newUser, error } = await supabase
+            .from('users')
+            .insert({
+                            auth_id: authUser.id,
+                            phone: phoneNumber,
+                            display_name: sock.user?.name || 'WhatsApp User',
+                            email: authUser.email,
+            })
+            .select('id')
+            .single();
 
   if (error) {
         logger.error({ error }, 'Failed to create owner user');
