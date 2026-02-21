@@ -187,6 +187,7 @@ async function handleMessage(msg: proto.IWebMessageInfo) {
               contact_id: contactId,
               wa_message_id: msg.key.id || '',
               sender_phone: senderPhone,
+                          message_type: contentType || 'text',
               sender_name: msg.pushName || senderPhone,
               text_content: text || '',
               is_from_me: msg.key.fromMe || false,
