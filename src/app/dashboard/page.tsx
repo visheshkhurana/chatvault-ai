@@ -158,7 +158,17 @@ export default function DashboardPage() {
                                             <h1 className="text-xl font-bold text-gray-900">ChatVault AI</h1>
                                 </div>
                                 <div className="flex items-center gap-4">
-                                            <a href="/dashboard/connect" className="text-sm text-green-600 hover:text-green-700 font-medium">Connect WhatsApp</a>
+                                            {bridgeStatus.connected ? (
+                                <div className="flex items-center gap-2">
+                                    <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse"></span>
+                                    <span className="text-sm text-green-600 font-medium">{bridgeStatus.name || bridgeStatus.phone || 'Connected'}</span>
+                                </div>
+                            ) : (
+                                <a href="/dashboard/connect" className="flex items-center gap-2 text-sm text-orange-600 hover:text-orange-700 font-medium">
+                                    <span className="w-2.5 h-2.5 bg-orange-400 rounded-full"></span>
+                                    Connect WhatsApp
+                                </a>
+                            )}
                                             <span className="text-sm text-gray-500">{user?.email}</span>
                                             <button onClick={handleSignOut} className="text-gray-500 hover:text-gray-700">
                                                           <LogOut className="w-5 h-5" />
