@@ -9,6 +9,7 @@ import makeWASocket, {
 import { Boom } from '@hapi/boom';
 import { createClient } from '@supabase/supabase-js';
 import express from 'express';
+import cors from 'cors';
 import QRCode from 'qrcode';
 import fs from 'fs';
 import pino from 'pino';
@@ -34,6 +35,7 @@ let connectionStatus: 'disconnected' | 'connecting' | 'connected' = 'disconnecte
 let ownerUserId: string | null = null;
 
 const app = express();
+app.use(cors());
 
 app.get('/', (_req, res) => {
     res.json({ service: 'chatvault-baileys-bridge', status: connectionStatus, uptime: process.uptime() });
