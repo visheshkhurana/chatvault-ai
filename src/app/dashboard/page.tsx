@@ -336,7 +336,7 @@ export default function DashboardPage() {
                                                             </div>
                                                             <div className="flex items-center gap-2 mt-1">
                                                                 <span className="text-xs text-gray-500">{chat.chat_type}</span>
-                                                                {chat.messages && chat.messages.length > 0 && (
+                                                                {chat.messages && chat.messages.length !== 0 && (
                                                                     <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">{chat.messages.length}</span>
                                                                 )}
                                                             </div>
