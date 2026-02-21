@@ -51,7 +51,6 @@ interface Message {
     chat_id: string;
 }
 
-
 const BRIDGE_URL = process.env.NEXT_PUBLIC_BRIDGE_URL || 'https://chatvault-ai-production.up.railway.app';
 
 export default function DashboardPage() {
@@ -65,20 +64,20 @@ export default function DashboardPage() {
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
     const [user, setUser] = useState<any>(null);
-  const [bridgeStatus, setBridgeStatus] = useState<BridgeStatus>({connected: false});
+    const [bridgeStatus, setBridgeStatus] = useState<BridgeStatus>({connected: false});
 
-  useEffect(() => {
-    const checkBridge = async () => {
-      try {
-        const res = await fetch(BRIDGE_URL + '/status');
-        const data = await res.json();
-        setBridgeStatus({ connected: data.connected, phone: data.phone, name: data.name });
-      } catch (e) { setBridgeStatus({ connected: false }); }
-    };
-    checkBridge();
-    const interval = setInterval(checkBridge, 30000);
-    return () => clearInterval(interval);
-  }, []);
+    useEffect(() => {
+        const checkBridge = async () => {
+            try {
+                const res = await fetch(BRIDGE_URL + '/status');
+                const data = await res.json();
+                setBridgeStatus({ connected: data.connected, phone: data.phone, name: data.name });
+            } catch (e) { setBridgeStatus({ connected: false }); }
+        };
+        checkBridge();
+        const interval = setInterval(checkBridge, 30000);
+        return () => clearInterval(interval);
+    }, []);
 
 
   useEffect(() => {
@@ -160,16 +159,16 @@ export default function DashboardPage() {
                                 </div>
                                 <div className="flex items-center gap-4">
                                             {bridgeStatus.connected ? (
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse"></span>
-                      <span className="text-sm text-green-600 font-medium">{bridgeStatus.name || bridgeStatus.phone || 'Connected'}</span>
-                    </div>
-                  ) : (
-                    <a href="/dashboard/connect" className="flex items-center gap-2 text-sm text-orange-600 hover:text-orange-700 font-medium">
-                      <span className="w-2.5 h-2.5 bg-orange-400 rounded-full"></span>
-                      Connect WhatsApp
-                    </a>
-                  )}
+                                <div className="flex items-center gap-2">
+                                    <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse"></span>
+                                    <span className="text-sm text-green-600 font-medium">{bridgeStatus.name || bridgeStatus.phone || 'Connected'}</span>
+                                </div>
+                            ) : (
+                                <a href="/dashboard/connect" className="flex items-center gap-2 text-sm text-orange-600 hover:text-orange-700 font-medium">
+                                    <span className="w-2.5 h-2.5 bg-orange-400 rounded-full"></span>
+                                    Connect WhatsApp
+                                </a>
+                            )}
                                             <span className="text-sm text-gray-500">{user?.email}</span>
                                             <button onClick={handleSignOut} className="text-gray-500 hover:text-gray-700">
                                                           <LogOut className="w-5 h-5" />
@@ -328,22 +327,22 @@ export default function DashboardPage() {
                                                               }`}
                                                             >
                                                             <div className="flex justify-between items-start">
-                                          <p className="font-medium text-gray-900 truncate">{chat.title}</p>
-                                          {chat.messages?.[0]?.timestamp && (
-                                            <span className="text-xs text-gray-400 whitespace-nowrap ml-2">
-                                              {new Date(chat.messages[0].timestamp).toLocaleDateString()}
-                                            </span>
-                                          )}
-                                        </div>
-                                        <div className="flex items-center gap-2 mt-1">
-                                          <span className="text-xs text-gray-500">{chat.chat_type}</span>
-                                          {chat.messages?.length > 0 && (
-                                            <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">{chat.messages.length}</span>
-                                          )}
-                                        </div>
-                                        {chat.messages?.[0]?.text_content && (
-                                          <p className="text-xs text-gray-400 mt-1 truncate">{chat.messages[0].text_content.substring(0, 50)}</p>
-                                        )}
+                                                                <p className="font-medium text-gray-900 truncate">{chat.title}</p>
+                                                                {chat.messages && chat.messages[0] && chat.messages[0].timestamp && (
+                                                                    <span className="text-xs text-gray-400 whitespace-nowrap ml-2">
+                                                                        {new Date(chat.messages[0].timestamp).toLocaleDateString()}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex items-center gap-2 mt-1">
+                                                                <span className="text-xs text-gray-500">{chat.chat_type}</span>
+                                                                {chat.messages && chat.messages.length > 0 && (
+                                                                    <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">{chat.messages.length}</span>
+                                                                )}
+                                                            </div>
+                                                            {chat.messages && chat.messages[0] && chat.messages[0].text_content && (
+                                                                <p className="text-xs text-gray-400 mt-1 truncate">{chat.messages[0].text_content.substring(0, 50)}</p>
+                                                            )}
                                                               {chat.category && (
                                                                                       <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
                                                                                         {chat.category}
