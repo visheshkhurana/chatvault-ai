@@ -510,4 +510,4 @@ function SummariesSection({ chats }: { chats: Chat[] }) {
                 </div>
           </div>
         );
-}</div>
+}
