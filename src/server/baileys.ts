@@ -12,6 +12,7 @@ import express from 'express';
 import cors from 'cors';
 import QRCode from 'qrcode';
 import fs from 'fs';
+import path from 'path';
 import pino from 'pino';
 
 // ================================================================
@@ -64,6 +65,16 @@ app.get('/sync', (_req, res) => {
 
 app.get('/health', (_req, res) => {
     res.json({ ok: connectionStatus === 'connected', status: connectionStatus });
+
+app.get('/status', (_req, res) => {
+    res.json({
+      connected: connectionStatus === 'connected',
+      status: connectionStatus,
+      sync: syncStats,
+      phone: sock?.user?.id?.split(':')[0]?.split('@')[0] || null,
+      name: sock?.user?.name || null,
+    });
+});
 });
 
 // ================================================================
@@ -116,8 +127,71 @@ async function ensureOwnerUser(): Promise<string> {
 // Baileys connection
 // ================================================================
 
+
+// ================================================================
+// Auth state persistence to Supabase
+// ================================================================
+const AUTH_BUCKET = 'baileys-auth';
+
+async function ensureAuthBucket() {
+  const { data: buckets } = await supabase.storage.listBuckets();
+  if (!buckets?.find((b: any) => b.name === AUTH_BUCKET)) {
+    await supabase.storage.createBucket(AUTH_BUCKET, { public: false });
+    logger.info('Created auth bucket');
+  }
+}
+
+async function restoreAuthFromSupabase(): Promise<boolean> {
+  try {
+    await ensureAuthBucket();
+    const { data: files } = await supabase.storage.from(AUTH_BUCKET).list('', { limit: 100 });
+    if (!files || files.length === 0) {
+      logger.info('No auth state in Supabase - fresh start');
+      return false;
+    }
+    if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true });
+    for (const file of files) {
+      const { data, error } = await supabase.storage.from(AUTH_BUCKET).download(file.name);
+      if (data && !error) {
+        const buf = Buffer.from(await data.arrayBuffer());
+        fs.writeFileSync(path.join(AUTH_DIR, file.name), buf);
+      }
+    }
+    logger.info({ count: files.length }, 'Restored auth state from Supabase');
+    return true;
+  } catch (err) {
+    logger.error({ err }, 'Failed to restore auth from Supabase');
+    return false;
+  }
+}
+
+async function backupAuthToSupabase() {
+  try {
+    await ensureAuthBucket();
+    if (!fs.existsSync(AUTH_DIR)) return;
+    const files = fs.readdirSync(AUTH_DIR);
+    for (const file of files) {
+      const filePath = path.join(AUTH_DIR, file);
+      const buf = fs.readFileSync(filePath);
+      await supabase.storage.from(AUTH_BUCKET).upload(file, buf, {
+        contentType: 'application/json',
+        upsert: true,
+      });
+    }
+    logger.info({ count: files.length }, 'Backed up auth state to Supabase');
+  } catch (err) {
+    logger.error({ err }, 'Failed to backup auth to Supabase');
+  }
+}
+
 async function startBaileys() {
     if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true });
+    // Restore auth from Supabase if local dir is empty
+    const localFiles = fs.existsSync(AUTH_DIR) ? fs.readdirSync(AUTH_DIR) : [];
+    if (localFiles.length === 0) {
+      await restoreAuthFromSupabase();
+    }
+
     const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
     connectionStatus = 'connecting';
     logger.info('Starting Baileys connection...');
@@ -140,7 +214,7 @@ async function startBaileys() {
                 connectionStatus = 'connected';
                 qrCode = null;
                 logger.info('Connected!');
-                try { await ensureOwnerUser(); } catch (err) { logger.error({ err }, 'ensureOwnerUser failed'); }
+                try { await ensureOwnerUser(); await backupAuthToSupabase(); } catch (err) { logger.error({ err }, 'ensureOwnerUser failed'); }
         }
         if (connection === 'close') {
                 connectionStatus = 'disconnected';
@@ -155,7 +229,10 @@ async function startBaileys() {
         }
   });
 
-  sock.ev.on('creds.update', saveCreds);
+  sock.ev.on('creds.update', async () => {
+      await saveCreds();
+      await backupAuthToSupabase();
+    });
 
     // Handle full history set events (contacts, chats, messages in bulk)
     sock.ev.on('messaging-history.set', async ({ chats: histChats, contacts: histContacts, messages: histMsgs, isLatest }) => {
