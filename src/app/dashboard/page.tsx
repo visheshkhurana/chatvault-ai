@@ -27,6 +27,12 @@ interface SearchResult {
     }>;
 }
 
+interface BridgeStatus {
+    connected: boolean;
+    phone?: string;
+    name?: string;
+}
+
 interface Chat {
     id: string;
     title: string;
@@ -59,7 +65,7 @@ export default function DashboardPage() {
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
     const [user, setUser] = useState<any>(null);
-  const [bridgeStatus, setBridgeStatus] = useState<{connected: boolean; phone?: string; name?: string}>({connected: false});
+  const [bridgeStatus, setBridgeStatus] = useState<BridgeStatus>({connected: false});
 
   useEffect(() => {
     const checkBridge = async () => {
@@ -67,7 +73,7 @@ export default function DashboardPage() {
         const res = await fetch(BRIDGE_URL + '/status');
         const data = await res.json();
         setBridgeStatus({ connected: data.connected, phone: data.phone, name: data.name });
-      } catch { setBridgeStatus({ connected: false }); }
+      } catch (e) { setBridgeStatus({ connected: false }); }
     };
     checkBridge();
     const interval = setInterval(checkBridge, 30000);
