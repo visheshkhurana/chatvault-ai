@@ -111,7 +111,7 @@ async function handleMessage(msg: proto.IWebMessageInfo) {
 
   const { data: stored, error } = await supabase.from('messages').insert({
     chat_id: chatId, contact_id: contactId, wa_message_id: msg.key.id || '',
-    content: text || '', message_type: mediaType || 'text',
+    text_content: text || '', message_type: mediaType || 'text',
     direction: msg.key.fromMe ? 'outgoing' : 'incoming', timestamp,
     metadata: { is_group: isGroup, content_type: contentType, sender_jid: senderJid },
   }).select('id').single();
@@ -168,7 +168,7 @@ async function storeAttachment(msgId: string, buf: Buffer, type: string, mime: s
   const ext = mime.split('/')[1]?.split(';')[0] || 'bin';
   const path = 'attachments/' + new Date().toISOString().split('T')[0] + '/' + msgId + '.' + ext;
   await supabase.storage.from('attachments').upload(path, buf, { contentType: mime });
-  await supabase.from('attachments').insert({ message_id: msgId, file_type: type, mime_type: mime, file_size: buf.length, storage_path: path });
+  await supabase.from('attachments').insert({ message_id: msgId, file_type: type, mime_type: mime, file_size_bytes: buf.length, storage_path: path });
 }
 
 async function generateEmbedding(msgId: string, text: string) {
@@ -181,7 +181,7 @@ async function generateEmbedding(msgId: string, text: string) {
   });
   const d = await r.json();
   const emb = d?.data?.[0]?.embedding;
-  if (emb) await supabase.from('embeddings').insert({ message_id: msgId, content: text.substring(0, 8000), embedding: JSON.stringify(emb) });
+  if (emb) await supabase.from('embeddings').insert({ message_id: msgId, chunk_text: text.substring(0, 8000), embedding: JSON.stringify(emb) });
 }
 
 async function main() {
