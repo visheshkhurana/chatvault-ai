@@ -33,6 +33,7 @@ let sock: WASocket | null = null;
 let qrCode: string | null = null;
 let connectionStatus: 'disconnected' | 'connecting' | 'connected' = 'disconnected';
 let ownerUserId: string | null = null;
+let syncStats = { chats: 0, messages: 0, contacts: 0, startedAt: null as Date | null, completedAt: null as Date | null, inProgress: false, errors: 0 };
 
 const app = express();
 app.use(cors());
@@ -47,6 +48,10 @@ app.get('/qr', (_req, res) => {
     if (!qrCode)
           return res.send('<html><body style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif"><div><h1>Waiting for QR...</h1><script>setTimeout(()=>location.reload(),3000)</script></div></body></html>');
     res.send('<html><body style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif"><div style="text-align:center"><h1>Scan QR with WhatsApp</h1><p>WhatsApp > Linked Devices > Link a Device</p><img src="' + qrCode + '" style="margin:20px;border:4px solid #3b82f6;border-radius:12px"/><script>setTimeout(()=>location.reload(),20000)</script></div></body></html>');
+});
+
+app.get('/sync', (_req, res) => {
+    res.json({ ...syncStats, connectionStatus });
 });
 
 app.get('/health', (_req, res) => {
@@ -114,6 +119,7 @@ async function startBaileys() {
         logger: pino({ level: 'silent' }),
         printQRInTerminal: true,
         browser: ['ChatVault AI', 'Chrome', '120.0'],
+        syncFullHistory: true,
   });
 
   sock.ev.on('connection.update', async (update) => {
@@ -143,11 +149,70 @@ async function startBaileys() {
 
   sock.ev.on('creds.update', saveCreds);
 
+    // Handle full history set events (contacts, chats, messages in bulk)
+    sock.ev.on('messaging-history.set', async ({ chats: histChats, contacts: histContacts, messages: histMsgs, isLatest }) => {
+        logger.info({ chats: histChats.length, contacts: histContacts.length, messages: histMsgs.length, isLatest }, 'History set received');
+        syncStats.inProgress = true;
+        if (!syncStats.startedAt) syncStats.startedAt = new Date();
+
+        try {
+            const userId = await ensureOwnerUser();
+
+            // Process contacts
+            for (const c of histContacts) {
+                try {
+                    const cId = c.id || '';
+                    const phone = cId.split('@')[0].split(':')[0];
+                    if (phone && cId) {
+                        await ensureContact(userId, phone, cId);
+                        syncStats.contacts++;
+                    }
+                } catch {}
+            }
+
+            // Process chats
+            for (const ch of histChats) {
+                try {
+                    const chatJid = ch.id || '';
+                    if (chatJid && chatJid !== 'status@broadcast') {
+                        const isGroup = chatJid.endsWith('@g.us');
+                        await ensureChat(userId, chatJid, isGroup);
+                        syncStats.chats++;
+                    }
+                } catch {}
+            }
+
+            // Process historical messages
+            for (const msg of histMsgs) {
+                try {
+                    await handleMessage(msg, true);
+                    syncStats.messages++;
+                } catch (err) {
+                    syncStats.errors++;
+                }
+            }
+
+            if (isLatest) {
+                syncStats.completedAt = new Date();
+                syncStats.inProgress = false;
+                logger.info(syncStats, 'History sync complete!');
+            }
+        } catch (err) {
+            logger.error({ err }, 'History set processing error');
+        }
+    });
+
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
-        if (type !== 'notify') return;
+        const isHistory = type === 'append';
+        if (type !== 'notify' && type !== 'append') return;
+        if (isHistory) {
+            syncStats.inProgress = true;
+            if (!syncStats.startedAt) syncStats.startedAt = new Date();
+            logger.info({ count: messages.length }, 'History sync batch received');
+        }
         for (const msg of messages) {
                 try {
-                          await handleMessage(msg);
+                          await handleMessage(msg, isHistory);
                 } catch (err) {
                           logger.error({ err, id: msg.key.id }, 'Message error');
                 }
@@ -159,7 +224,7 @@ async function startBaileys() {
 // Message handling
 // ================================================================
 
-async function handleMessage(msg: proto.IWebMessageInfo) {
+async function handleMessage(msg: proto.IWebMessageInfo, isHistory = false) {
     if (!sock || !msg.message) return;
     const remoteJid = msg.key.remoteJid || '';
     if (remoteJid === 'status@broadcast') return;
@@ -201,12 +266,13 @@ async function handleMessage(msg: proto.IWebMessageInfo) {
       .single();
 
   if (error) {
+        if (isHistory && error.code === '23505') return; // skip duplicates during history sync
         logger.error({ error }, 'Store failed');
         return;
-  }
+    }
 
   // Handle media attachments
-  if (mediaType && stored) {
+  if (mediaType && stored && !isHistory) {
         try {
                 const buf = await downloadMediaMessage(msg, 'buffer', {});
                 if (buf) await storeAttachment(userId, stored.id, chatId, buf as Buffer, mediaType, mimeType || 'application/octet-stream');
@@ -216,7 +282,7 @@ async function handleMessage(msg: proto.IWebMessageInfo) {
   }
 
   // Generate embeddings for text
-  if (text && text.length > 10 && stored) {
+  if (text && text.length > 10 && stored && !isHistory) {
         try {
                 await generateEmbedding(userId, chatId, stored.id, text);
         } catch {}
