@@ -13,7 +13,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 const s3Client = new S3Client({
     endpoint: process.env.B2_ENDPOINT!,
-    region: 'us-west-004',
+        region: 'us-east-005',
     credentials: {
           accessKeyId: process.env.B2_APPLICATION_KEY_ID!,
           secretAccessKey: process.env.B2_APPLICATION_KEY!,
