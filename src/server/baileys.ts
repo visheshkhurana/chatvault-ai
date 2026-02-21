@@ -42,12 +42,20 @@ app.get('/', (_req, res) => {
     res.json({ service: 'chatvault-baileys-bridge', status: connectionStatus, uptime: process.uptime() });
 });
 
-app.get('/qr', (_req, res) => {
-    if (connectionStatus === 'connected')
-          return res.send('<html><body style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;background:#f0fdf4"><div style="text-align:center"><h1 style="color:#16a34a">Connected to WhatsApp</h1><p>Bridge is running.</p></div></body></html>');
-    if (!qrCode)
-          return res.send('<html><body style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif"><div><h1>Waiting for QR...</h1><script>setTimeout(()=>location.reload(),3000)</script></div></body></html>');
-    res.send('<html><body style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif"><div style="text-align:center"><h1>Scan QR with WhatsApp</h1><p>WhatsApp > Linked Devices > Link a Device</p><img src="' + qrCode + '" style="margin:20px;border:4px solid #3b82f6;border-radius:12px"/><script>setTimeout(()=>location.reload(),20000)</script></div></body></html>');
+app.get('/qr', (req, res) => {
+  const embed = req.query.embed === '1';
+  if (connectionStatus === 'connected') {
+    if (embed) return res.send('<html><body style="display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#f0fdf4"><p style="font-family:sans-serif;color:#16a34a;font-size:18px">Connected</p></body></html>');
+    return res.send('<html><body style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;background:#f0fdf4"><div style="text-align:center"><h1 style="color:#16a34a">Connected to WhatsApp</h1><p>Bridge is running.</p></div></body></html>');
+  }
+  if (!qrCode) {
+    if (embed) return res.send('<html><body style="display:flex;justify-content:center;align-items:center;height:100vh;margin:0"><div class="spinner" style="width:48px;height:48px;border:4px solid #e5e7eb;border-top:4px solid #22c55e;border-radius:50%;animation:spin 1s linear infinite"></div><style>@keyframes spin{to{transform:rotate(360deg)}}</style><script>setTimeout(()=>location.reload(),3000)<\/script></body></html>');
+    return res.send('<html><body style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif"><div><h1>Waiting for QR...</h1><script>setTimeout(()=>location.reload(),3000)<\/script></div></body></html>');
+  }
+  if (embed) {
+    return res.send('<html><body style="display:flex;justify-content:center;align-items:center;height:100vh;margin:0;padding:0"><img src="' + qrCode + '" style="max-width:100%;max-height:100%;border:4px solid #3b82f6;border-radius:12px"/><script>setTimeout(()=>location.reload(),20000)<\/script></body></html>');
+  }
+  res.send('<html><body style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif"><div style="text-align:center"><h1>Scan QR with WhatsApp</h1><p>WhatsApp > Linked Devices > Link a Device</p><img src="' + qrCode + '" style="margin:20px;border:4px solid #3b82f6;border-radius:12px"/><script>setTimeout(()=>location.reload(),20000)<\/script></div></body></html>');
 });
 
 app.get('/sync', (_req, res) => {
