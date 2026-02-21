@@ -12,12 +12,15 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Server-side Supabase client (uses service role key, bypasses RLS)
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-    auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-    },
-});
+// Only created on server-side where SUPABASE_SERVICE_ROLE_KEY is available
+export const supabaseAdmin = supabaseServiceKey
+    ? createClient(supabaseUrl, supabaseServiceKey, {
+                auth: {
+                                autoRefreshToken: false,
+                                persistSession: false,
+                },
+    })
+        : null as any;
 
 // Types for database tables
 export interface DbUser {
