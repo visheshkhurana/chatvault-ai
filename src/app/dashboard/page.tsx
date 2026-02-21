@@ -45,6 +45,9 @@ interface Message {
     chat_id: string;
 }
 
+
+const BRIDGE_URL = process.env.NEXT_PUBLIC_BRIDGE_URL || 'https://chatvault-ai-production.up.railway.app';
+
 export default function DashboardPage() {
     const [query, setQuery] = useState('');
     const [searchResult, setSearchResult] = useState<SearchResult | null>(null);
@@ -56,6 +59,21 @@ export default function DashboardPage() {
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
     const [user, setUser] = useState<any>(null);
+  const [bridgeStatus, setBridgeStatus] = useState<{connected: boolean; phone?: string; name?: string}>({connected: false});
+
+  useEffect(() => {
+    const checkBridge = async () => {
+      try {
+        const res = await fetch(BRIDGE_URL + '/status');
+        const data = await res.json();
+        setBridgeStatus({ connected: data.connected, phone: data.phone, name: data.name });
+      } catch { setBridgeStatus({ connected: false }); }
+    };
+    checkBridge();
+    const interval = setInterval(checkBridge, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
 
   useEffect(() => {
         checkAuth();
@@ -74,7 +92,7 @@ export default function DashboardPage() {
   async function loadChats() {
         const { data } = await supabase
           .from('chats')
-          .select('*')
+          .select('*, messages(text_content, message_type, timestamp, sender_name)')
           .order('last_message_at', { ascending: false });
         setChats(data || []);
   }
@@ -135,7 +153,17 @@ export default function DashboardPage() {
                                             <h1 className="text-xl font-bold text-gray-900">ChatVault AI</h1>
                                 </div>
                                 <div className="flex items-center gap-4">
-                                            <a href="/dashboard/connect" className="text-sm text-green-600 hover:text-green-700 font-medium">Connect WhatsApp</a>
+                                            {bridgeStatus.connected ? (
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse"></span>
+                      <span className="text-sm text-green-600 font-medium">{bridgeStatus.name || bridgeStatus.phone || 'Connected'}</span>
+                    </div>
+                  ) : (
+                    <a href="/dashboard/connect" className="flex items-center gap-2 text-sm text-orange-600 hover:text-orange-700 font-medium">
+                      <span className="w-2.5 h-2.5 bg-orange-400 rounded-full"></span>
+                      Connect WhatsApp
+                    </a>
+                  )}
                                             <span className="text-sm text-gray-500">{user?.email}</span>
                                             <button onClick={handleSignOut} className="text-gray-500 hover:text-gray-700">
                                                           <LogOut className="w-5 h-5" />
@@ -293,9 +321,23 @@ export default function DashboardPage() {
                                                                                       selectedChat === chat.id ? 'bg-green-50' : ''
                                                               }`}
                                                             >
-                                                            <p className="font-medium text-gray-900">{chat.title}</p>
-                                                            <div className="flex items-center gap-2 mt-1">
-                                                                                  <span className="text-xs text-gray-500">{chat.chat_type}</span>
+                                                            <div className="flex justify-between items-start">
+                                          <p className="font-medium text-gray-900 truncate">{chat.title}</p>
+                                          {chat.messages?.[0]?.timestamp && (
+                                            <span className="text-xs text-gray-400 whitespace-nowrap ml-2">
+                                              {new Date(chat.messages[0].timestamp).toLocaleDateString()}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-1">
+                                          <span className="text-xs text-gray-500">{chat.chat_type}</span>
+                                          {chat.messages?.length > 0 && (
+                                            <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">{chat.messages.length}</span>
+                                          )}
+                                        </div>
+                                        {chat.messages?.[0]?.text_content && (
+                                          <p className="text-xs text-gray-400 mt-1 truncate">{chat.messages[0].text_content.substring(0, 50)}</p>
+                                        )}
                                                               {chat.category && (
                                                                                       <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
                                                                                         {chat.category}
