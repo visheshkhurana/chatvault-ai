@@ -10,7 +10,7 @@ import OpenAI from 'openai';
 // ============================================================
 
 const scanSchema = z.object({
-    chatId: z.string().uuid(),
+    chatId: z.string().uuid().optional().nullable().transform(v => v ?? undefined),
     scanDays: z.number().int().min(1).max(30).default(7),
 });
 
@@ -34,30 +34,60 @@ export const POST = withAuth(async (req: NextRequest, { user }) => {
 
     const { chatId, scanDays } = parsed.data as z.infer<typeof scanSchema>;
 
-    // Verify chat ownership
-    const { data: chat } = await supabaseAdmin
-        .from('chats')
-        .select('id, title')
-        .eq('id', chatId)
-        .eq('user_id', user.id)
-        .single();
-
-    if (!chat) {
-        return apiError('Chat not found', 404);
-    }
-
     // Calculate date range
     const now = new Date();
     const fromDate = new Date(now.getTime() - scanDays * 24 * 60 * 60 * 1000);
 
-    // Fetch messages from the chat
-    const { data: messages, error: messagesError } = await supabaseAdmin
+    let targetChatIds: string[] = [];
+
+    if (chatId) {
+        // Verify single chat ownership
+        const { data: chat } = await supabaseAdmin
+            .from('chats')
+            .select('id, title')
+            .eq('id', chatId)
+            .eq('user_id', user.id)
+            .single();
+
+        if (!chat) {
+            return apiError('Chat not found', 404);
+        }
+        targetChatIds = [chat.id];
+    } else {
+        // Scan across all user's chats
+        const { data: userChats } = await supabaseAdmin
+            .from('chats')
+            .select('id')
+            .eq('user_id', user.id)
+            .order('last_message_at', { ascending: false })
+            .limit(20); // Top 20 most recent chats
+
+        if (!userChats || userChats.length === 0) {
+            return apiSuccess({
+                commitments: [],
+                scanned: 0,
+                created: 0,
+                message: 'No chats found',
+            });
+        }
+        targetChatIds = userChats.map((c: any) => c.id);
+    }
+
+    // Fetch messages from the target chat(s)
+    let query = supabaseAdmin
         .from('messages')
-        .select('id, text_content, sender_name, sender_phone, is_from_me, timestamp')
-        .eq('chat_id', chatId)
+        .select('id, text_content, sender_name, sender_phone, is_from_me, timestamp, chat_id')
         .gte('timestamp', fromDate.toISOString())
         .order('timestamp', { ascending: true })
         .limit(500); // Reasonable limit for LLM context
+
+    if (targetChatIds.length === 1) {
+        query = query.eq('chat_id', targetChatIds[0]);
+    } else {
+        query = query.in('chat_id', targetChatIds);
+    }
+
+    const { data: messages, error: messagesError } = await query;
 
     if (messagesError) {
         console.error('[Commitments Scan] Error fetching messages:', messagesError);
@@ -171,20 +201,24 @@ Return only a JSON array of commitments found. Example format:
 
         for (const commitment of extractedCommitments) {
             // Check if similar commitment already exists (to avoid duplicates)
-            const { data: existing } = await supabaseAdmin
+            let existingQuery = supabaseAdmin
                 .from('commitments')
                 .select('id')
                 .eq('user_id', user.id)
-                .eq('chat_id', chatId)
-                .ilike('text', commitment.text)
-                .single();
+                .ilike('text', commitment.text);
+
+            if (chatId) {
+                existingQuery = existingQuery.eq('chat_id', chatId);
+            }
+
+            const { data: existing } = await existingQuery.single();
 
             if (!existing) {
                 const { data: created, error: insertError } = await supabaseAdmin
                     .from('commitments')
                     .insert({
                         user_id: user.id,
-                        chat_id: chatId,
+                        chat_id: chatId || null,
                         text: commitment.text,
                         committed_by: commitment.committed_by,
                         due_date: commitment.due_date,

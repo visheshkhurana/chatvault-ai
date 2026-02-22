@@ -29,6 +29,8 @@ export default function SettingsSection() {
         setLoading(true);
         try {
             const session = await supabase.auth.getSession();
+            const userEmail = session.data.session?.user?.email || '';
+            const userName = session.data.session?.user?.user_metadata?.full_name || session.data.session?.user?.user_metadata?.name || '';
             const response = await fetch('/api/settings', {
                 headers: {
                     'Authorization': `Bearer ${session.data.session?.access_token}`,
@@ -36,9 +38,9 @@ export default function SettingsSection() {
             });
             const data = await response.json();
             setSettings({
-                display_name: data.profile?.displayName || '',
-                email: data.profile?.email || '',
-                timezone: data.profile?.timezone || 'UTC',
+                display_name: data.profile?.displayName || userName || userEmail.split('@')[0] || '',
+                email: data.profile?.email || userEmail,
+                timezone: data.profile?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
                 daily_summary: data.notifications?.dailySummary ?? false,
                 weekly_summary: data.notifications?.weeklySummary ?? false,
                 commitment_alerts: data.notifications?.commitmentAlerts ?? true,

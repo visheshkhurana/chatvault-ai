@@ -7,9 +7,9 @@ import { z } from 'zod';
 // --- Search API ---
 export const searchSchema = z.object({
     query: z.string().min(1, 'Query is required').max(1000, 'Query too long'),
-    chatId: z.string().uuid().optional(),
-    dateFrom: z.string().datetime().optional(),
-    dateTo: z.string().datetime().optional(),
+    chatId: z.string().uuid().optional().nullable().transform(v => v ?? undefined),
+    dateFrom: z.string().datetime().optional().nullable().transform(v => v ?? undefined),
+    dateTo: z.string().datetime().optional().nullable().transform(v => v ?? undefined),
     maxResults: z.number().int().min(1).max(50).optional().default(10),
 });
 

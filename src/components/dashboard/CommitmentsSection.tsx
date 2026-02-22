@@ -17,6 +17,8 @@ interface Commitment {
 export default function CommitmentsSection() {
     const [commitments, setCommitments] = useState<Commitment[]>([]);
     const [scanning, setScanning] = useState(false);
+    const [scanResult, setScanResult] = useState<string | null>(null);
+    const [scanError, setScanError] = useState<string | null>(null);
 
     useEffect(() => {
         loadCommitments();
@@ -39,17 +41,28 @@ export default function CommitmentsSection() {
 
     async function scanForCommitments() {
         setScanning(true);
+        setScanResult(null);
+        setScanError(null);
         try {
             const session = await supabase.auth.getSession();
-            await fetch('/api/commitments/scan', {
+            const response = await fetch('/api/commitments/scan', {
                 method: 'POST',
                 headers: {
+                    'Content-Type': 'application/json',
                     'Authorization': `Bearer ${session.data.session?.access_token}`,
                 },
+                body: JSON.stringify({ scanDays: 7 }),
             });
-            await loadCommitments();
+            const data = await response.json();
+            if (!response.ok) {
+                setScanError(data.error || 'Scan failed');
+            } else {
+                setScanResult(data.message || `Found ${data.created || 0} new commitments`);
+                await loadCommitments();
+            }
         } catch (err) {
             console.error('Failed to scan commitments:', err);
+            setScanError('Failed to scan commitments. Please try again.');
         }
         setScanning(false);
     }
@@ -113,6 +126,16 @@ export default function CommitmentsSection() {
                     {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckSquare className="w-4 h-4" />}
                     Scan for Commitments
                 </button>
+                {scanError && (
+                    <div className="mt-3 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+                        {scanError}
+                    </div>
+                )}
+                {scanResult && (
+                    <div className="mt-3 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">
+                        {scanResult}
+                    </div>
+                )}
             </div>
 
             {/* Commitments by Status */}

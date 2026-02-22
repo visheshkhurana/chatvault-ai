@@ -18,6 +18,8 @@ export default function SummariesSection() {
     const [generating, setGenerating] = useState(false);
     const [selectedChatForSummary, setSelectedChatForSummary] = useState('');
     const [chats, setChats] = useState<Chat[]>([]);
+    const [genError, setGenError] = useState<string | null>(null);
+    const [genSuccess, setGenSuccess] = useState<string | null>(null);
 
     useEffect(() => {
           loadChats();
@@ -42,11 +44,16 @@ export default function SummariesSection() {
     }
 
     async function generateSummary() {
-          if (!selectedChatForSummary) return;
+          if (!selectedChatForSummary) {
+              setGenError('Please select a chat first');
+              return;
+          }
           setGenerating(true);
+          setGenError(null);
+          setGenSuccess(null);
           try {
                   const session = await supabase.auth.getSession();
-                  await fetch('/api/summarize', {
+                  const response = await fetch('/api/summarize', {
                             method: 'POST',
                             headers: {
                                         'Content-Type': 'application/json',
@@ -57,9 +64,16 @@ export default function SummariesSection() {
                                         days: 7,
                             }),
                   });
-                  await loadSummaries();
+                  const data = await response.json();
+                  if (!response.ok) {
+                      setGenError(data.error || 'Failed to generate summary');
+                  } else {
+                      setGenSuccess('Summary generated successfully');
+                      await loadSummaries();
+                  }
           } catch (err) {
                   console.error('Summary error:', err);
+                  setGenError('Failed to generate summary. Please try again.');
           }
           setGenerating(false);
     }
@@ -86,6 +100,16 @@ export default function SummariesSection() {
                                   Generate Summary
                         </button>
                 </div>
+                {genError && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+                        {genError}
+                    </div>
+                )}
+                {genSuccess && (
+                    <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">
+                        {genSuccess}
+                    </div>
+                )}
 
                 <div className="space-y-4">
                   {summaries.map((summary: any) => (

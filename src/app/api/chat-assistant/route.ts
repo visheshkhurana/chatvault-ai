@@ -86,12 +86,18 @@ export const POST = withAuth(async (req: NextRequest, { user }) => {
         const latestUserMessage = userMessages[userMessages.length - 1].content;
 
         // Step 1: Run hybrid search to find relevant context
-        const searchResults = await hybridSearch({
-            userId: user.id,
-            query: latestUserMessage,
-            matchCount: 8,
-            chatId: chatId,
-        });
+        let searchResults: any[] = [];
+        try {
+            searchResults = await hybridSearch({
+                userId: user.id,
+                query: latestUserMessage,
+                matchCount: 8,
+                chatId: chatId,
+            }) || [];
+        } catch (searchError) {
+            console.error('[Chat Assistant API] Search error (continuing without context):', searchError);
+            // Continue without search results rather than failing entirely
+        }
 
         // Step 2: Enrich search results with metadata
         const enrichedSources = await enrichSearchResults(searchResults, user.id);

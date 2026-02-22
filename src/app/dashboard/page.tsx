@@ -38,19 +38,51 @@ interface BridgeStatus {
 
 const BRIDGE_URL = process.env.NEXT_PUBLIC_BRIDGE_URL || 'https://chatvault-ai-production.up.railway.app';
 
+function getTabFromHash(): TabType {
+    if (typeof window === 'undefined') return 'home';
+    const hash = window.location.hash.replace('#', '');
+    const validTabs: TabType[] = ['home', 'search', 'assistant', 'chats', 'attachments', 'summaries', 'contacts', 'sentiment', 'labels', 'reminders', 'commitments', 'templates', 'analytics', 'reports', 'settings'];
+    return validTabs.includes(hash as TabType) ? (hash as TabType) : 'home';
+}
+
 export default function DashboardPage() {
     const [activeTab, setActiveTab] = useState<TabType>('home');
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [user, setUser] = useState<any>(null);
     const [bridgeStatus, setBridgeStatus] = useState<BridgeStatus>({ connected: false });
 
+    // Hash-based routing: read on mount and listen for changes
+    useEffect(() => {
+        setActiveTab(getTabFromHash());
+        const handleHashChange = () => setActiveTab(getTabFromHash());
+        window.addEventListener('hashchange', handleHashChange);
+        return () => window.removeEventListener('hashchange', handleHashChange);
+    }, []);
+
+    // Sync hash when tab changes
+    const handleTabChange = (tab: TabType) => {
+        setActiveTab(tab);
+        window.location.hash = tab;
+    };
+
     useEffect(() => {
         const checkBridge = async () => {
             try {
                 const res = await fetch(BRIDGE_URL + '/status');
                 const data = await res.json();
-                setBridgeStatus({ connected: data.connected, phone: data.phone, name: data.name });
-            } catch { setBridgeStatus({ connected: false }); }
+                setBridgeStatus((prev) => {
+                    // Only update if status actually changed to avoid flickering
+                    if (prev.connected !== data.connected || prev.phone !== data.phone || prev.name !== data.name) {
+                        return { connected: data.connected, phone: data.phone, name: data.name };
+                    }
+                    return prev;
+                });
+            } catch {
+                setBridgeStatus((prev) => {
+                    if (prev.connected) return { connected: false };
+                    return prev;
+                });
+            }
         };
         checkBridge();
         const interval = setInterval(checkBridge, 30000);
@@ -72,7 +104,7 @@ export default function DashboardPage() {
 
     const renderSection = () => {
         switch (activeTab) {
-            case 'home': return <HomeSection onNavigate={setActiveTab} />;
+            case 'home': return <HomeSection onNavigate={handleTabChange} />;
             case 'search': return <SearchSection />;
             case 'assistant': return <AssistantSection />;
             case 'chats': return <ChatsSection />;
@@ -136,7 +168,7 @@ export default function DashboardPage() {
                 {/* Sidebar — desktop only */}
                 <DashboardSidebar
                     activeTab={activeTab}
-                    onTabChange={setActiveTab}
+                    onTabChange={handleTabChange}
                     collapsed={sidebarCollapsed}
                     onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
                 />
@@ -150,7 +182,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Mobile bottom tab bar */}
-            <MobileTabBar activeTab={activeTab} onTabChange={setActiveTab} />
+            <MobileTabBar activeTab={activeTab} onTabChange={handleTabChange} />
         </div>
     );
 }

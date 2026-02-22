@@ -59,6 +59,15 @@ export default function AnalyticsSection() {
     const maxVolume = Math.max(...(analytics.message_volume || []).map((v: any) => v.count), 1);
     const maxHourly = Math.max(...(analytics.hourly_distribution || []).map((v: any) => v.count), 1);
 
+    function formatDate(dateStr: string): string {
+        try {
+            const d = new Date(dateStr);
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        } catch {
+            return dateStr;
+        }
+    }
+
     return (
         <div className="space-y-6">
             {/* Period Selector */}
@@ -113,13 +122,13 @@ export default function AnalyticsSection() {
                     <h3 className="font-semibold text-gray-900 mb-4">Message Volume</h3>
                     <div className="flex items-end gap-2 h-40">
                         {analytics.message_volume.map((item: any, i: number) => (
-                            <div key={i} className="flex-1 flex flex-col items-center gap-2">
+                            <div key={i} className="flex flex-col items-center gap-2" style={{ flex: '1 1 0', maxWidth: '60px' }}>
                                 <div
                                     className="w-full bg-green-600 rounded-t-lg transition-all"
-                                    style={{ height: `${(item.count / maxVolume) * 150}px` }}
-                                    title={`${item.count} messages`}
+                                    style={{ height: `${Math.max((item.count / maxVolume) * 150, 2)}px` }}
+                                    title={`${formatDate(item.date)}: ${item.count} messages`}
                                 />
-                                <span className="text-xs text-gray-600 text-center truncate">{item.date}</span>
+                                <span className="text-xs text-gray-600 text-center truncate w-full">{formatDate(item.date)}</span>
                             </div>
                         ))}
                     </div>

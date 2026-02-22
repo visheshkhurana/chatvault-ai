@@ -13,6 +13,17 @@ interface Contact {
     notes: string;
 }
 
+function formatWaId(waId: string): string {
+    if (!waId) return '';
+    // Strip @s.whatsapp.net, @lid, @g.us suffixes
+    let clean = waId.replace(/@s\.whatsapp\.net$/, '').replace(/@lid$/, '').replace(/@g\.us$/, '');
+    // Format as phone number if it's all digits
+    if (/^\d{10,15}$/.test(clean)) {
+        return '+' + clean;
+    }
+    return clean;
+}
+
 export default function ContactsSection() {
     const [contacts, setContacts] = useState<Contact[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -125,7 +136,7 @@ export default function ContactsSection() {
                             }`}
                         >
                             <p className="font-medium text-gray-900">{contact.display_name}</p>
-                            <p className="text-xs text-gray-500 mt-1">{contact.wa_id}</p>
+                            <p className="text-xs text-gray-500 mt-1">{formatWaId(contact.wa_id)}</p>
                             <p className="text-xs text-gray-400 mt-0.5">{contact.message_count} messages</p>
                         </button>
                     ))}
@@ -150,7 +161,7 @@ export default function ContactsSection() {
                                 </div>
                                 <div>
                                     <p className="text-xs text-gray-500 uppercase">WhatsApp ID</p>
-                                    <p className="text-gray-900 font-mono text-sm">{selectedContact.wa_id}</p>
+                                    <p className="text-gray-900 font-mono text-sm">{formatWaId(selectedContact.wa_id)}</p>
                                 </div>
                                 <div>
                                     <p className="text-xs text-gray-500 uppercase">Messages</p>

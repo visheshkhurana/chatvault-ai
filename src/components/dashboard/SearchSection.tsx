@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Search, Loader2, FileText } from 'lucide-react';
 
@@ -39,6 +39,10 @@ export default function SearchSection() {
     const [dateTo, setDateTo] = useState('');
     const [chats, setChats] = useState<Chat[]>([]);
     const [selectedChat, setSelectedChat] = useState<string | null>(null);
+
+    useEffect(() => {
+        loadChats();
+    }, []);
 
     const loadChats = async () => {
         const { data } = await supabase

@@ -13,6 +13,11 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [message, setMessage] = useState('');
+    const [emailTouched, setEmailTouched] = useState(false);
+    const [passwordTouched, setPasswordTouched] = useState(false);
+
+    const emailError = emailTouched && !email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/) ? 'Please enter a valid email address' : '';
+    const passwordError = passwordTouched && !isForgotPassword && password.length > 0 && password.length < 6 ? 'Password must be at least 6 characters' : '';
 
     async function handleForgotPassword(e: React.FormEvent) {
         e.preventDefault();
@@ -73,11 +78,10 @@ export default function LoginPage() {
                         <MessageSquare className="w-7 h-7 text-white" />
                     </div>
                     <h1 className="text-4xl font-bold text-white leading-tight mb-4">
-                        Your WhatsApp,{' '}
-                        <span className="text-brand-400">supercharged</span>
+                        Rememora
                     </h1>
                     <p className="text-surface-400 text-lg leading-relaxed mb-8">
-                        Search across all your conversations with AI. Find messages, documents, and decisions in seconds.
+                        Your AI-powered WhatsApp memory. Search conversations, track commitments, and never lose an important message again.
                     </p>
 
                     {/* Feature bullets */}
@@ -129,8 +133,8 @@ export default function LoginPage() {
                             {isForgotPassword
                                 ? 'Enter your email and we\'ll send you a reset link.'
                                 : isSignUp
-                                ? 'Start searching your WhatsApp in minutes.'
-                                : 'Sign in to access your WhatsApp memory.'}
+                                ? 'Create your Rememora account to get started.'
+                                : 'Sign in to your Rememora account.'}
                         </p>
 
                         <form onSubmit={isForgotPassword ? handleForgotPassword : handleSubmit} className="space-y-5">
@@ -143,11 +147,13 @@ export default function LoginPage() {
                                         type="email"
                                         value={email}
                                         onChange={(e: any) => setEmail(e.target.value)}
+                                        onBlur={() => setEmailTouched(true)}
                                         required
-                                        className="input-modern pl-10"
+                                        className={`input-modern pl-10 ${emailError ? 'border-red-300 focus:ring-red-500' : ''}`}
                                         placeholder="you@example.com"
                                     />
                                 </div>
+                                {emailError && <p className="text-xs text-red-500 mt-1">{emailError}</p>}
                             </div>
 
                             {/* Password field */}
@@ -160,12 +166,14 @@ export default function LoginPage() {
                                             type="password"
                                             value={password}
                                             onChange={(e: any) => setPassword(e.target.value)}
+                                            onBlur={() => setPasswordTouched(true)}
                                             required
                                             minLength={6}
-                                            className="input-modern pl-10"
+                                            className={`input-modern pl-10 ${passwordError ? 'border-red-300 focus:ring-red-500' : ''}`}
                                             placeholder="Min. 6 characters"
                                         />
                                     </div>
+                                    {passwordError && <p className="text-xs text-red-500 mt-1">{passwordError}</p>}
                                 </div>
                             )}
 
