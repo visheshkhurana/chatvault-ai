@@ -23,7 +23,8 @@ const openai = new OpenAI({
 export async function GET(request: NextRequest) {
   // Verify cron secret
   const cronSecret = request.headers.get('x-cron-secret') ||
-    request.nextUrl.searchParams.get('secret');
+        request.headers.get('authorization')?.replace('Bearer ', '') ||
+        request.nextUrl.searchParams.get('secret');
   if (cronSecret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
