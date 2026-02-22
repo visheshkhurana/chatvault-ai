@@ -104,9 +104,9 @@ export default function DashboardPage() {
 
     const renderSection = () => {
         switch (activeTab) {
-            case 'home': return <HomeSection onNavigate={handleTabChange} />;
+            case 'home': return <AssistantSection bridgeStatus={bridgeStatus.connected ? 'connected' : 'disconnected'} userEmail={user?.email} />;
             case 'search': return <SearchSection />;
-            case 'assistant': return <AssistantSection />;
+            case 'assistant': return <AssistantSection bridgeStatus={bridgeStatus.connected ? 'connected' : 'disconnected'} userEmail={user?.email} />;
             case 'chats': return <ChatsSection />;
             case 'attachments': return <AttachmentsSection />;
             case 'summaries': return <SummariesSection />;

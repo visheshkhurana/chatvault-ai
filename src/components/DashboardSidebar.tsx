@@ -2,7 +2,7 @@
 
 import React from 'react';
 import {
-  Home,
+  Bot,
   Search,
   Brain,
   MessageCircle,
@@ -44,7 +44,7 @@ const navGroups: NavGroup[] = [
   {
     title: 'Main',
     items: [
-      { icon: Home, label: 'Home', tab: 'home' },
+      { icon: Bot, label: 'Home', tab: 'home' },
     ],
   },
   {

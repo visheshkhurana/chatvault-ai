@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import {
-  Home,
+  Bot,
   Search,
   Brain,
   MessageCircle,
@@ -38,7 +38,7 @@ const MobileTabBar: React.FC<MobileTabBarProps> = ({ activeTab, onTabChange }) =
   const [isMoreOpen, setIsMoreOpen] = useState(false);
 
   const mainTabs: Array<{ icon: React.ElementType; label: string; tab: TabType | 'more' }> = [
-    { icon: Home, label: 'Home', tab: 'home' },
+    { icon: Bot, label: 'Home', tab: 'home' },
     { icon: Search, label: 'Search', tab: 'search' },
     { icon: MessageCircle, label: 'Chats', tab: 'chats' },
     { icon: Brain, label: 'AI', tab: 'assistant' },
