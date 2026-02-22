@@ -166,9 +166,14 @@ async function processIncomingMessage(
         }
   }
 
-  // Step 8: Check if this is a bot command and respond
-  if (textContent && isCommand(textContent)) {
-        await handleBotCommand(textContent, user.id, senderPhone, chat.id);
+  // Step 8: Check if this is a bot command or conversational message
+  if (textContent) {
+        if (isCommand(textContent)) {
+              await handleBotCommand(textContent, user.id, senderPhone, chat.id);
+        } else if (textContent.length > 2) {
+              // Check bot_mode — if 'active', route non-commands to AI
+              await handleConversationalAI(textContent, user, senderPhone, chat.id);
+        }
   }
 
   // Mark message as read
@@ -292,7 +297,10 @@ async function processMediaAttachment(
 // ============================================================
 
 function isCommand(text: string): boolean {
-    const commands = ['summary', 'find', 'search', 'show', 'help', 'remind', 'brief', 'status', 'summarize'];
+    const commands = [
+        'summary', 'find', 'search', 'show', 'help', 'remind', 'brief', 'status', 'summarize',
+        'ask', 'analytics', 'insights', 'commitments', 'sentiment', 'quiet', 'active',
+    ];
     const firstWord = text.toLowerCase().trim().split(/\s+/)[0];
     return commands.includes(firstWord);
 }
@@ -312,15 +320,22 @@ async function handleBotCommand(
           case 'help': {
                     const helpText =
                                 `*Rememora Commands:*\n\n` +
-                                `*find* [keyword] - Search your messages\n` +
-                                `*search* [keyword] - Search your messages\n` +
-                                `*summary* last [N] days - Get a chat summary\n` +
-                                `*summarize* [group name] or [time period] - Enhanced summary\n` +
-                                `*show* documents about [topic] - Find documents\n` +
-                                `*brief* [contact name] - Get contact briefing\n` +
-                                `*remind* [task] by [date] or remind me to [task] - Create reminder\n` +
-                                `*status* - Show your Rememora stats\n` +
-                                `*help* - Show this help message`;
+                                `🔍 *find/search* [keyword] - Search messages\n` +
+                                `🧠 *ask* [question] - Ask AI a question\n` +
+                                `📝 *summary* last [N] days - Chat summary\n` +
+                                `📋 *summarize* [group] or [period] - Enhanced summary\n` +
+                                `📎 *show* documents about [topic] - Find files\n` +
+                                `👤 *brief* [contact] - Contact briefing\n` +
+                                `💡 *insights* [contact] - Relationship analysis\n` +
+                                `😊 *sentiment* [contact] - Mood analysis\n` +
+                                `📊 *analytics* last [N] days - Key stats\n` +
+                                `✅ *commitments* - List pending tasks\n` +
+                                `⏰ *remind* [task] by [date] - Create reminder\n` +
+                                `📈 *status* - Your Rememora stats\n` +
+                                `🔇 *quiet* - Stop auto-replies\n` +
+                                `🔊 *active* - Resume auto-replies\n` +
+                                `❓ *help* - Show this message\n\n` +
+                                `_💬 Or just send any message — I'll respond with AI!_`;
                     await sendTextMessage(senderPhone, helpText);
                     break;
           }
@@ -588,6 +603,191 @@ async function handleBotCommand(
                     break;
           }
 
+          case 'ask': {
+                    // Explicit conversational query — route to AI
+                    if (!args) {
+                                await sendTextMessage(senderPhone, 'Please ask a question. Example: ask what did Neha say about the project?');
+                                return;
+                    }
+                    await routeToAssistant(args, userId, senderPhone, chatId);
+                    break;
+          }
+
+          case 'analytics': {
+                    // Quick analytics summary
+                    const periodMatch = args.match(/last\s+(\d+)\s+days?/i);
+                    const analyticsDays = periodMatch ? parseInt(periodMatch[1]) : 7;
+                    const analyticsFrom = new Date(Date.now() - analyticsDays * 24 * 60 * 60 * 1000).toISOString();
+
+                    const { count: periodMessages } = await supabaseAdmin
+                                .from('messages')
+                                .select('id', { count: 'exact', head: true })
+                                .eq('user_id', userId)
+                                .gte('timestamp', analyticsFrom);
+
+                    const { count: activeChatsCount } = await supabaseAdmin
+                                .from('chats')
+                                .select('id', { count: 'exact', head: true })
+                                .eq('user_id', userId)
+                                .gte('last_message_at', analyticsFrom);
+
+                    // Top contacts by message count in period
+                    const { data: topContactsData } = await supabaseAdmin
+                                .from('messages')
+                                .select('sender_name')
+                                .eq('user_id', userId)
+                                .gte('timestamp', analyticsFrom)
+                                .not('sender_name', 'is', null);
+
+                    const contactCounts: Record<string, number> = {};
+                    (topContactsData || []).forEach((m: any) => {
+                                contactCounts[m.sender_name] = (contactCounts[m.sender_name] || 0) + 1;
+                    });
+                    const topContacts = Object.entries(contactCounts)
+                                .sort((a, b) => b[1] - a[1])
+                                .slice(0, 5);
+
+                    let analyticsText = `*Analytics (last ${analyticsDays} days):*\n\n` +
+                                `📨 Messages: ${periodMessages || 0}\n` +
+                                `💬 Active Chats: ${activeChatsCount || 0}\n`;
+
+                    if (topContacts.length > 0) {
+                                analyticsText += `\n*Top Contacts:*\n`;
+                                topContacts.forEach(([name, count], i) => {
+                                              analyticsText += `${i + 1}. ${name} (${count} msgs)\n`;
+                                });
+                    }
+                    await sendTextMessage(senderPhone, analyticsText);
+                    break;
+          }
+
+          case 'insights': {
+                    if (!args) {
+                                await sendTextMessage(senderPhone, 'Please specify a contact. Example: insights Neha');
+                                return;
+                    }
+
+                    // Find contact
+                    const { data: insightContacts } = await supabaseAdmin
+                                .from('contacts')
+                                .select('id, display_name, wa_id')
+                                .eq('user_id', userId)
+                                .ilike('display_name', `%${args}%`)
+                                .limit(1);
+
+                    if (!insightContacts || insightContacts.length === 0) {
+                                await sendTextMessage(senderPhone, `No contact found matching "${args}"`);
+                                return;
+                    }
+
+                    const insightContact = insightContacts[0];
+
+                    // Get message count and date range
+                    const { count: msgCount } = await supabaseAdmin
+                                .from('messages')
+                                .select('id', { count: 'exact', head: true })
+                                .eq('user_id', userId)
+                                .eq('contact_id', insightContact.id);
+
+                    const { data: firstMsg } = await supabaseAdmin
+                                .from('messages')
+                                .select('timestamp')
+                                .eq('user_id', userId)
+                                .eq('contact_id', insightContact.id)
+                                .order('timestamp', { ascending: true })
+                                .limit(1);
+
+                    const { data: lastMsg } = await supabaseAdmin
+                                .from('messages')
+                                .select('timestamp')
+                                .eq('user_id', userId)
+                                .eq('contact_id', insightContact.id)
+                                .order('timestamp', { ascending: false })
+                                .limit(1);
+
+                    let insightText = `*Insights: ${insightContact.display_name}*\n\n` +
+                                `📊 Total Messages: ${msgCount || 0}\n`;
+
+                    if (firstMsg && firstMsg.length > 0) {
+                                insightText += `📅 First Message: ${new Date(firstMsg[0].timestamp).toLocaleDateString()}\n`;
+                    }
+                    if (lastMsg && lastMsg.length > 0) {
+                                insightText += `🕐 Last Active: ${new Date(lastMsg[0].timestamp).toLocaleDateString()}\n`;
+                    }
+
+                    // Recent activity (last 7 days)
+                    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+                    const { count: recentCount } = await supabaseAdmin
+                                .from('messages')
+                                .select('id', { count: 'exact', head: true })
+                                .eq('user_id', userId)
+                                .eq('contact_id', insightContact.id)
+                                .gte('timestamp', weekAgo);
+
+                    insightText += `📈 Messages (7d): ${recentCount || 0}`;
+
+                    await sendTextMessage(senderPhone, insightText);
+                    break;
+          }
+
+          case 'commitments': {
+                    // List pending commitments/reminders
+                    const { data: pendingItems } = await supabaseAdmin
+                                .from('reminders')
+                                .select('text, due_at, status')
+                                .eq('user_id', userId)
+                                .eq('status', 'pending')
+                                .order('due_at', { ascending: true })
+                                .limit(10);
+
+                    if (!pendingItems || pendingItems.length === 0) {
+                                await sendTextMessage(senderPhone, '✅ No pending commitments or reminders!');
+                                return;
+                    }
+
+                    let commitText = `*Pending Commitments (${pendingItems.length}):*\n\n`;
+                    pendingItems.forEach((item: any, i: number) => {
+                                const due = new Date(item.due_at);
+                                const isOverdue = due < new Date();
+                                commitText += `${isOverdue ? '🔴' : '🔵'} ${i + 1}. ${item.text}\n   Due: ${due.toLocaleDateString()}${isOverdue ? ' (OVERDUE)' : ''}\n\n`;
+                    });
+
+                    await sendTextMessage(senderPhone, commitText);
+                    break;
+          }
+
+          case 'sentiment': {
+                    if (!args) {
+                                await sendTextMessage(senderPhone, 'Please specify a contact. Example: sentiment Neha');
+                                return;
+                    }
+
+                    // Route to AI for sentiment analysis
+                    const sentimentQuery = `Analyze the overall mood and sentiment of my conversations with ${args}. What topics do we discuss most? Is the tone generally positive, neutral, or negative?`;
+                    await routeToAssistant(sentimentQuery, userId, senderPhone, chatId);
+                    break;
+          }
+
+          case 'quiet': {
+                    // Set bot mode to quiet
+                    await supabaseAdmin
+                                .from('users')
+                                .update({ bot_mode: 'quiet' })
+                                .eq('id', userId);
+                    await sendTextMessage(senderPhone, '🔇 Quiet mode ON. I\'ll only respond to explicit commands. Type *active* to resume auto-replies.');
+                    break;
+          }
+
+          case 'active': {
+                    // Set bot mode to active
+                    await supabaseAdmin
+                                .from('users')
+                                .update({ bot_mode: 'active' })
+                                .eq('id', userId);
+                    await sendTextMessage(senderPhone, '🔊 Active mode ON. I\'ll respond to all your messages with AI assistance. Type *quiet* to stop auto-replies.');
+                    break;
+          }
+
           default:
                     await sendTextMessage(senderPhone, 'Unknown command. Type *help* for available commands.');
         }
@@ -595,6 +795,103 @@ async function handleBotCommand(
         console.error('[Bot] Command error:', err);
         await sendTextMessage(senderPhone, 'Sorry, something went wrong. Please try again.');
   }
+}
+
+// ============================================================
+// Conversational AI Handler
+// Routes non-command messages to AI when bot_mode is 'active'
+// ============================================================
+
+async function handleConversationalAI(
+    text: string,
+    user: any,
+    senderPhone: string,
+    chatId: string
+) {
+    // Check bot_mode — default to 'active' if column doesn't exist yet
+    const botMode = user.bot_mode || 'active';
+    if (botMode !== 'active') return;
+
+    // Don't respond to very short messages (greetings like "hi" etc.)
+    if (text.length < 5) return;
+
+    try {
+        await routeToAssistant(text, user.id, senderPhone, chatId);
+    } catch (err) {
+        console.error('[Bot] Conversational AI error:', err);
+        // Silently fail — don't spam users with error messages for auto-replies
+    }
+}
+
+async function routeToAssistant(
+    query: string,
+    userId: string,
+    senderPhone: string,
+    chatId: string
+) {
+    const { hybridSearch } = await import('@/lib/embeddings');
+
+    // Step 1: Search for relevant context
+    const searchResults = await hybridSearch({
+        userId,
+        query,
+        matchCount: 6,
+        chatId,
+    });
+
+    // Step 2: Build context from results
+    const contextParts = searchResults.map((r: any, i: number) => {
+        const parts = [`[${i + 1}]`, r.chunk_text || ''];
+        if (r.metadata?.sender_name) parts.push(`From: ${r.metadata.sender_name}`);
+        if (r.metadata?.timestamp) {
+            try {
+                parts.push(`Date: ${new Date(r.metadata.timestamp).toLocaleDateString()}`);
+            } catch { /* skip */ }
+        }
+        return parts.join(' | ');
+    });
+
+    const context = contextParts.length > 0
+        ? `Relevant WhatsApp messages:\n\n${contextParts.join('\n\n')}`
+        : 'No relevant messages found.';
+
+    // Step 3: Call LLM with WhatsApp-optimized prompt
+    const OpenAI = (await import('openai')).default;
+    const openai = new OpenAI({
+        apiKey: process.env.OPENROUTER_API_KEY!,
+        baseURL: 'https://openrouter.ai/api/v1',
+    });
+
+    const LLM_MODEL = process.env.OPENROUTER_MODEL || 'qwen/qwen-2.5-72b-instruct';
+
+    const completion = await openai.chat.completions.create({
+        model: LLM_MODEL,
+        messages: [
+            {
+                role: 'system',
+                content: `You are Rememora, a WhatsApp AI assistant that helps users search and recall their message history.
+You are responding via WhatsApp, so keep answers concise (under 300 words). Use WhatsApp formatting: *bold*, _italic_, ~strikethrough~.
+Answer based on the provided context. If context doesn't answer the question, say so honestly.
+Reference specific messages by sender name and date when available.
+Be friendly, brief, and helpful.`,
+            },
+            {
+                role: 'user',
+                content: `${context}\n\n---\n\nUser query: ${query}`,
+            },
+        ],
+        temperature: 0.7,
+        max_tokens: 512,
+    });
+
+    let reply = completion.choices[0]?.message?.content || 'Sorry, I couldn\'t generate a response.';
+
+    // Format for WhatsApp: truncate if too long
+    if (reply.length > 4000) {
+        reply = reply.substring(0, 3950) + '\n\n...truncated. View full results on the dashboard.';
+    }
+
+    await sendTextMessage(senderPhone, reply);
 }
 
 // ============================================================
