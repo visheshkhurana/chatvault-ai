@@ -243,3 +243,186 @@ export function getMediaInfo(message: WhatsAppMessage): WhatsAppMedia | null {
       default: return null;
     }
 }
+
+// ============================================================
+// Media Sending — Upload & Send Documents/Images via WhatsApp
+// ============================================================
+
+/**
+ * Upload a media file to WhatsApp servers and get a reusable media_id.
+ * WhatsApp requires media to be uploaded first, then sent by ID.
+ */
+export async function uploadMediaToWhatsApp(
+  buffer: Buffer,
+  mimeType: string,
+  filename?: string
+): Promise<string> {
+  const formData = new FormData();
+  const blob = new Blob([new Uint8Array(buffer)], { type: mimeType });
+  formData.append('file', blob, filename || 'file');
+  formData.append('messaging_product', 'whatsapp');
+  formData.append('type', mimeType);
+
+  const response = await fetch(
+    `${GRAPH_API_URL}/${PHONE_NUMBER_ID}/media`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${ACCESS_TOKEN}`,
+      },
+      body: formData,
+    }
+  );
+
+  const result = await response.json();
+  if (!result.id) {
+    throw new Error(`WhatsApp media upload failed: ${JSON.stringify(result)}`);
+  }
+  return result.id;
+}
+
+/**
+ * Send a document to a WhatsApp user by media URL (link-based).
+ * WhatsApp downloads the file from the URL.
+ */
+export async function sendDocumentByUrl(
+  to: string,
+  documentUrl: string,
+  filename: string,
+  caption?: string
+): Promise<any> {
+  const body: any = {
+    messaging_product: 'whatsapp',
+    to,
+    type: 'document',
+    document: {
+      link: documentUrl,
+      filename,
+    },
+  };
+  if (caption) {
+    body.document.caption = caption;
+  }
+
+  const response = await fetch(
+    `${GRAPH_API_URL}/${PHONE_NUMBER_ID}/messages`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${ACCESS_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    }
+  );
+  return response.json();
+}
+
+/**
+ * Send an image to a WhatsApp user by URL.
+ */
+export async function sendImageByUrl(
+  to: string,
+  imageUrl: string,
+  caption?: string
+): Promise<any> {
+  const body: any = {
+    messaging_product: 'whatsapp',
+    to,
+    type: 'image',
+    image: {
+      link: imageUrl,
+    },
+  };
+  if (caption) {
+    body.image.caption = caption;
+  }
+
+  const response = await fetch(
+    `${GRAPH_API_URL}/${PHONE_NUMBER_ID}/messages`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${ACCESS_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    }
+  );
+  return response.json();
+}
+
+/**
+ * Send a document by uploading buffer first, then sending by media_id.
+ * Use this when sending files from B2 storage that require auth headers.
+ */
+export async function sendDocumentByUpload(
+  to: string,
+  buffer: Buffer,
+  mimeType: string,
+  filename: string,
+  caption?: string
+): Promise<any> {
+  const mediaId = await uploadMediaToWhatsApp(buffer, mimeType, filename);
+
+  const body: any = {
+    messaging_product: 'whatsapp',
+    to,
+    type: 'document',
+    document: {
+      id: mediaId,
+      filename,
+    },
+  };
+  if (caption) {
+    body.document.caption = caption;
+  }
+
+  const response = await fetch(
+    `${GRAPH_API_URL}/${PHONE_NUMBER_ID}/messages`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${ACCESS_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    }
+  );
+  return response.json();
+}
+
+/**
+ * Send image by uploading buffer first.
+ */
+export async function sendImageByUpload(
+  to: string,
+  buffer: Buffer,
+  mimeType: string,
+  caption?: string
+): Promise<any> {
+  const mediaId = await uploadMediaToWhatsApp(buffer, mimeType);
+
+  const body: any = {
+    messaging_product: 'whatsapp',
+    to,
+    type: 'image',
+    image: { id: mediaId },
+  };
+  if (caption) {
+    body.image.caption = caption;
+  }
+
+  const response = await fetch(
+    `${GRAPH_API_URL}/${PHONE_NUMBER_ID}/messages`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${ACCESS_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    }
+  );
+  return response.json();
+}

@@ -15,6 +15,11 @@ import {
 import { uploadFile, getFileTypeFromMime } from '@/lib/storage';
 import { storeEmbeddings } from '@/lib/embeddings';
 import { queryRAG } from '@/lib/rag';
+import { classifyIntent, logIntent, type ClassifiedIntent } from '@/lib/intent-classifier';
+import { handleRetrieval } from '@/lib/retrieval-engine';
+import { handleMeetingDetection, confirmLatestMeeting } from '@/lib/meeting-detector';
+import { handleReminderCreation } from '@/lib/smart-reminder';
+import { handleCommitmentDetection } from '@/lib/commitment-detector';
 
 // ============================================================
 // WhatsApp Webhook Endpoint
@@ -166,14 +171,34 @@ async function processIncomingMessage(
         }
   }
 
-  // Step 8: Check if this is a bot command or conversational message
-  if (textContent) {
-        if (isCommand(textContent)) {
-              await handleBotCommand(textContent, user.id, senderPhone, chat.id);
-        } else if (textContent.length > 2) {
-              // Check bot_mode — if 'active', route non-commands to AI
-              await handleConversationalAI(textContent, user, senderPhone, chat.id);
+  // Step 8: Intent-based routing — classify and handle
+  if (textContent && textContent.length > 2) {
+        try {
+              await handleIntentRouting(
+                    textContent,
+                    user,
+                    senderPhone,
+                    senderName,
+                    chat.id,
+                    contact?.id || null,
+                    storedMessage.id
+              );
+        } catch (err) {
+              console.error('[Webhook] Intent routing error:', err);
         }
+  }
+
+  // Step 9: Background — commitment detection (non-blocking)
+  if (textContent && textContent.length > 10) {
+        detectCommitmentsInBackground(
+              user.id,
+              senderPhone,
+              textContent,
+              chat.id,
+              contact?.id || null,
+              message.type !== 'text' ? false : true, // is_from_me is always false for incoming
+              senderName
+        ).catch(err => console.error('[Webhook] Commitment detection error:', err));
   }
 
   // Mark message as read
@@ -293,7 +318,178 @@ async function processMediaAttachment(
 }
 
 // ============================================================
-// Bot Command Handler
+// Intent-Based Routing (NEW — replaces old isCommand check)
+// ============================================================
+
+async function handleIntentRouting(
+    text: string,
+    user: any,
+    senderPhone: string,
+    senderName: string,
+    chatId: string,
+    contactId: string | null,
+    messageId: string
+) {
+    const userTimezone = user.timezone || 'UTC';
+
+    // Check for quick confirmation patterns first (e.g., "yes" to confirm a meeting)
+    const lowerText = text.toLowerCase().trim();
+    if (['yes', 'yeah', 'yep', 'confirm', 'ok', 'sure', 'do it'].includes(lowerText)) {
+        // Try to confirm a pending meeting
+        const confirmed = await confirmLatestMeeting(supabaseAdmin, user.id, senderPhone);
+        if (confirmed) return;
+        // If no pending meeting, fall through to normal processing
+    }
+
+    // Classify intent via LLM
+    const classified = await classifyIntent(text);
+
+    // Log the intent (non-blocking)
+    logIntent(supabaseAdmin, user.id, messageId, classified, 0).catch(() => {});
+
+    // Route based on intent
+    switch (classified.intent) {
+        case 'command': {
+            // Legacy command handling for explicit commands
+            await handleBotCommand(text, user.id, senderPhone, chatId);
+            break;
+        }
+
+        case 'retrieval': {
+            // Smart document/message retrieval with file delivery
+            await handleRetrieval(supabaseAdmin, user.id, senderPhone, classified);
+            break;
+        }
+
+        case 'meeting': {
+            // Meeting detection and calendar flow
+            await handleMeetingDetection(
+                supabaseAdmin,
+                user.id,
+                senderPhone,
+                senderName,
+                text,
+                messageId,
+                chatId,
+                userTimezone
+            );
+            break;
+        }
+
+        case 'reminder': {
+            // Smart reminder creation (time, conditional, recurring)
+            await handleReminderCreation(
+                supabaseAdmin,
+                user.id,
+                senderPhone,
+                text,
+                chatId,
+                messageId,
+                userTimezone,
+                senderName
+            );
+            break;
+        }
+
+        case 'calendar_query': {
+            // Calendar queries — check upcoming events
+            try {
+                const { getUpcomingEvents, isCalendarConnected } = await import('@/lib/google-calendar');
+                const connected = await isCalendarConnected(supabaseAdmin, user.id);
+                if (!connected) {
+                    await sendTextMessage(senderPhone, '📅 Google Calendar not connected. Visit your dashboard settings to connect it.');
+                    break;
+                }
+                const events = await getUpcomingEvents(supabaseAdmin, user.id, 5);
+                if (events.length === 0) {
+                    await sendTextMessage(senderPhone, '📅 No upcoming events on your calendar.');
+                } else {
+                    let msg = `📅 *Upcoming Events:*\n\n`;
+                    events.forEach((e, i) => {
+                        const start = new Date(e.startTime);
+                        msg += `${i + 1}. *${e.title}*\n   🕐 ${start.toLocaleDateString()} ${start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}\n`;
+                        if (e.link) msg += `   🔗 ${e.link}\n`;
+                        msg += '\n';
+                    });
+                    await sendTextMessage(senderPhone, msg);
+                }
+            } catch (err) {
+                console.error('[Intent] Calendar query error:', err);
+                await sendTextMessage(senderPhone, '❌ Could not fetch calendar events. Please try again.');
+            }
+            break;
+        }
+
+        case 'question': {
+            // General knowledge question — route through RAG + AI
+            await routeToAssistant(text, user.id, senderPhone, chatId);
+            break;
+        }
+
+        case 'commitment': {
+            // Show commitments list (user asking about their commitments)
+            const { data: pendingCommitments } = await supabaseAdmin
+                .from('commitments')
+                .select('text, due_date, priority, committed_by')
+                .eq('user_id', user.id)
+                .eq('status', 'pending')
+                .order('due_date', { ascending: true })
+                .limit(10);
+
+            if (!pendingCommitments || pendingCommitments.length === 0) {
+                await sendTextMessage(senderPhone, '✅ No pending commitments tracked!');
+            } else {
+                let msg = `📋 *Pending Commitments (${pendingCommitments.length}):*\n\n`;
+                pendingCommitments.forEach((c: any, i: number) => {
+                    const priorityIcon = c.priority === 'high' ? '🔴' : c.priority === 'medium' ? '🟡' : '🟢';
+                    msg += `${priorityIcon} ${i + 1}. ${c.text}\n`;
+                    if (c.due_date) {
+                        const isOverdue = new Date(c.due_date) < new Date();
+                        msg += `   📅 ${new Date(c.due_date).toLocaleDateString()}${isOverdue ? ' ⚠️ OVERDUE' : ''}\n`;
+                    }
+                    msg += `   👤 ${c.committed_by === 'me' ? 'You committed' : c.committed_by === 'them' ? 'They committed' : 'Mutual'}\n\n`;
+                });
+                await sendTextMessage(senderPhone, msg);
+            }
+            break;
+        }
+
+        case 'casual':
+        default: {
+            // Casual messages — check bot_mode
+            const botMode = user.bot_mode || 'active';
+            if (botMode === 'active' && text.length >= 5) {
+                await routeToAssistant(text, user.id, senderPhone, chatId);
+            }
+            break;
+        }
+    }
+}
+
+// Background commitment detection (fire-and-forget)
+async function detectCommitmentsInBackground(
+    userId: string,
+    senderPhone: string,
+    text: string,
+    chatId: string,
+    contactId: string | null,
+    isFromMe: boolean,
+    senderName: string
+) {
+    await handleCommitmentDetection(
+        supabaseAdmin,
+        userId,
+        senderPhone,
+        text,
+        chatId,
+        contactId,
+        isFromMe,
+        senderName
+    );
+}
+
+// ============================================================
+// Bot Command Handler (Legacy — kept for explicit /commands)
 // ============================================================
 
 function isCommand(text: string): boolean {
