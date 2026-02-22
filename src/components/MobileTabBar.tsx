@@ -17,7 +17,7 @@ import {
   CheckSquare,
   Layout,
   BarChart3,
-  FileJson,
+  FileBarChart,
   Settings,
 } from 'lucide-react';
 import { TabType } from '@/types/dashboard';
@@ -28,159 +28,129 @@ interface MobileTabBarProps {
 }
 
 interface MoreMenuItem {
-  icon: React.ReactNode;
+  icon: React.ElementType;
   label: string;
   tab: TabType;
   group: string;
 }
 
 const MobileTabBar: React.FC<MobileTabBarProps> = ({ activeTab, onTabChange }) => {
-  const [isMoreSheetOpen, setIsMoreSheetOpen] = useState(false);
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
 
-  const mainTabs: Array<{ icon: React.ReactNode; label: string; tab: TabType }> = [
-    { icon: <Home size={24} />, label: 'Home', tab: 'home' },
-    { icon: <Search size={24} />, label: 'Search', tab: 'search' },
-    { icon: <MessageCircle size={24} />, label: 'Chats', tab: 'chats' },
-    { icon: <Brain size={24} />, label: 'AI', tab: 'assistant' },
-    { icon: <MoreHorizontal size={24} />, label: 'More', tab: 'home' },
+  const mainTabs: Array<{ icon: React.ElementType; label: string; tab: TabType | 'more' }> = [
+    { icon: Home, label: 'Home', tab: 'home' },
+    { icon: Search, label: 'Search', tab: 'search' },
+    { icon: MessageCircle, label: 'Chats', tab: 'chats' },
+    { icon: Brain, label: 'AI', tab: 'assistant' },
+    { icon: MoreHorizontal, label: 'More', tab: 'more' },
   ];
 
-  const moreMenuItems: MoreMenuItem[] = [
-    // Messages group
-    { icon: <Paperclip size={24} />, label: 'Files', tab: 'attachments', group: 'Messages' },
-    { icon: <FileText size={24} />, label: 'Summaries', tab: 'summaries', group: 'Messages' },
-    // People group
-    { icon: <Users size={24} />, label: 'Contacts', tab: 'contacts', group: 'People' },
-    { icon: <Smile size={24} />, label: 'Sentiment', tab: 'sentiment', group: 'People' },
-    // Organize group
-    { icon: <Tag size={24} />, label: 'Labels', tab: 'labels', group: 'Organize' },
-    { icon: <Clock size={24} />, label: 'Reminders', tab: 'reminders', group: 'Organize' },
-    { icon: <CheckSquare size={24} />, label: 'Commitments', tab: 'commitments', group: 'Organize' },
-    { icon: <Layout size={24} />, label: 'Templates', tab: 'templates', group: 'Organize' },
-    // Insights group
-    { icon: <BarChart3 size={24} />, label: 'Analytics', tab: 'analytics', group: 'Insights' },
-    { icon: <FileJson size={24} />, label: 'Reports', tab: 'reports', group: 'Insights' },
-    // Settings
-    { icon: <Settings size={24} />, label: 'Settings', tab: 'settings', group: 'Settings' },
+  const moreItems: MoreMenuItem[] = [
+    { icon: Paperclip, label: 'Files', tab: 'attachments', group: 'Messages' },
+    { icon: FileText, label: 'Summaries', tab: 'summaries', group: 'Messages' },
+    { icon: Users, label: 'Contacts', tab: 'contacts', group: 'People' },
+    { icon: Smile, label: 'Sentiment', tab: 'sentiment', group: 'People' },
+    { icon: Tag, label: 'Labels', tab: 'labels', group: 'Organize' },
+    { icon: Clock, label: 'Reminders', tab: 'reminders', group: 'Organize' },
+    { icon: CheckSquare, label: 'Commitments', tab: 'commitments', group: 'Organize' },
+    { icon: Layout, label: 'Templates', tab: 'templates', group: 'Organize' },
+    { icon: BarChart3, label: 'Analytics', tab: 'analytics', group: 'Insights' },
+    { icon: FileBarChart, label: 'Reports', tab: 'reports', group: 'Insights' },
+    { icon: Settings, label: 'Settings', tab: 'settings', group: 'Settings' },
   ];
 
-  const handleTabChange = (tab: TabType) => {
+  const grouped = moreItems.reduce<Array<{ group: string; items: MoreMenuItem[] }>>((acc, item) => {
+    const existing = acc.find((g) => g.group === item.group);
+    if (existing) existing.items.push(item);
+    else acc.push({ group: item.group, items: [item] });
+    return acc;
+  }, []);
+
+  const handleMoreItem = (tab: TabType) => {
     onTabChange(tab);
+    setIsMoreOpen(false);
   };
-
-  const handleMoreItemClick = (tab: TabType) => {
-    handleTabChange(tab);
-    setIsMoreSheetOpen(false);
-  };
-
-  const handleMoreButtonClick = () => {
-    setIsMoreSheetOpen(!isMoreSheetOpen);
-  };
-
-  // Group menu items by category
-  const groupedMenuItems = moreMenuItems.reduce(
-    (acc, item) => {
-      const groupIndex = acc.findIndex((g) => g.group === item.group);
-      if (groupIndex === -1) {
-        acc.push({ group: item.group, items: [item] });
-      } else {
-        acc[groupIndex].items.push(item);
-      }
-      return acc;
-    },
-    [] as Array<{ group: string; items: MoreMenuItem[] }>
-  );
 
   return (
     <>
-      {/* Mobile Tab Bar */}
-      <div className="flex md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 h-15 pb-safe">
-        <div className="flex w-full items-center justify-around px-2">
-          {mainTabs.map((tab, index) => {
-            const isMore = tab.tab === 'home' && tab.label === 'More';
+      {/* Tab Bar */}
+      <div className="flex md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-slate-200 z-30 pb-safe">
+        <div className="flex w-full items-center justify-around px-1">
+          {mainTabs.map((tab, i) => {
+            const isMore = tab.tab === 'more';
             const isActive = !isMore && activeTab === tab.tab;
-
-            return isMore ? (
+            const Icon = tab.icon;
+            return (
               <button
-                key={index}
-                onClick={handleMoreButtonClick}
-                className={`flex flex-col items-center justify-center py-2 px-3 transition-colors ${
-                  isMoreSheetOpen ? 'text-green-600' : 'text-gray-400'
-                }`}
-                aria-label="More options"
+                key={i}
+                onClick={() => isMore ? setIsMoreOpen(!isMoreOpen) : onTabChange(tab.tab as TabType)}
+                className={`flex flex-col items-center justify-center py-2 px-3 transition-colors relative
+                  ${isActive ? 'text-emerald-600' : isMore && isMoreOpen ? 'text-emerald-600' : 'text-slate-400'}
+                `}
               >
-                <div>{tab.icon}</div>
-                <span className="text-xs mt-1 font-medium">{tab.label}</span>
-              </button>
-            ) : (
-              <button
-                key={index}
-                onClick={() => handleTabChange(tab.tab)}
-                className={`flex flex-col items-center justify-center py-2 px-3 transition-colors ${
-                  isActive ? 'text-green-600' : 'text-gray-400'
-                }`}
-                aria-label={tab.label}
-              >
-                <div>{tab.icon}</div>
-                <span className="text-xs mt-1 font-medium">{tab.label}</span>
+                {isActive && (
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-5 h-0.5 bg-emerald-500 rounded-full" />
+                )}
+                <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
+                <span className="text-[10px] mt-1 font-medium">{tab.label}</span>
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* More Sheet Backdrop and Content */}
-      {isMoreSheetOpen && (
+      {/* More Sheet */}
+      {isMoreOpen && (
         <>
-          {/* Backdrop */}
           <div
-            className="flex md:hidden fixed inset-0 bg-black/50 z-40"
-            onClick={() => setIsMoreSheetOpen(false)}
-            aria-hidden="true"
+            className="flex md:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
+            onClick={() => setIsMoreOpen(false)}
           />
+          <div className="flex md:hidden fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl z-50 max-h-[70vh] overflow-y-auto pb-safe">
+            {/* Handle bar */}
+            <div className="w-full">
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 bg-slate-300 rounded-full" />
+              </div>
+              <div className="px-5 py-3 flex items-center justify-between border-b border-slate-100">
+                <h2 className="text-base font-semibold text-slate-900">More Options</h2>
+                <button
+                  onClick={() => setIsMoreOpen(false)}
+                  className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <X size={20} className="text-slate-500" />
+                </button>
+              </div>
 
-          {/* Bottom Sheet */}
-          <div className="flex md:hidden fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-lg z-50 max-h-96 overflow-y-auto pb-safe">
-            {/* Sheet Header */}
-            <div className="sticky top-0 bg-white border-b border-gray-200 rounded-t-2xl w-full px-4 py-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">More Options</h2>
-              <button
-                onClick={() => setIsMoreSheetOpen(false)}
-                className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
-                aria-label="Close sheet"
-              >
-                <X size={24} className="text-gray-600" />
-              </button>
-            </div>
-
-            {/* Sheet Content - Grouped Grid */}
-            <div className="w-full px-4 py-4">
-              {groupedMenuItems.map((group, groupIndex) => (
-                <div key={groupIndex} className="mb-6">
-                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-2">
-                    {group.group}
-                  </h3>
-                  <div className="grid grid-cols-4 gap-3">
-                    {group.items.map((item, itemIndex) => (
-                      <button
-                        key={itemIndex}
-                        onClick={() => handleMoreItemClick(item.tab)}
-                        className={`flex flex-col items-center justify-center py-3 px-2 rounded-lg transition-colors ${
-                          activeTab === item.tab
-                            ? 'bg-green-100 text-green-600'
-                            : 'text-gray-600 hover:bg-gray-100'
-                        }`}
-                        aria-label={item.label}
-                      >
-                        <div className="mb-2">{item.icon}</div>
-                        <span className="text-xs font-medium text-center line-clamp-2">
-                          {item.label}
-                        </span>
-                      </button>
-                    ))}
+              <div className="px-4 py-4 space-y-5">
+                {grouped.map((group, gi) => (
+                  <div key={gi}>
+                    <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-2 px-1">
+                      {group.group}
+                    </p>
+                    <div className="grid grid-cols-4 gap-2">
+                      {group.items.map((item, ii) => {
+                        const Icon = item.icon;
+                        const isActive = activeTab === item.tab;
+                        return (
+                          <button
+                            key={ii}
+                            onClick={() => handleMoreItem(item.tab)}
+                            className={`flex flex-col items-center justify-center py-3 px-1 rounded-xl transition-all
+                              ${isActive
+                                ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                                : 'text-slate-500 hover:bg-slate-50 border border-transparent'
+                              }`}
+                          >
+                            <Icon size={20} className="mb-1.5" />
+                            <span className="text-[11px] font-medium">{item.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         </>

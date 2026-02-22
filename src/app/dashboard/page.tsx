@@ -27,8 +27,7 @@ import LabelsSection from '@/components/dashboard/LabelsSection';
 import ReportsSection from '@/components/dashboard/ReportsSection';
 
 // ============================================================
-// Rememora - Dashboard Page
-// Sidebar layout with grouped navigation
+// Rememora — Dashboard
 // ============================================================
 
 interface BridgeStatus {
@@ -51,28 +50,19 @@ export default function DashboardPage() {
                 const res = await fetch(BRIDGE_URL + '/status');
                 const data = await res.json();
                 setBridgeStatus({ connected: data.connected, phone: data.phone, name: data.name });
-            } catch (e) { setBridgeStatus({ connected: false }); }
+            } catch { setBridgeStatus({ connected: false }); }
         };
         checkBridge();
         const interval = setInterval(checkBridge, 30000);
         return () => clearInterval(interval);
     }, []);
 
-    useEffect(() => {
-        const initDashboard = async () => {
-            await checkAuth();
-        };
-        initDashboard();
-    }, []);
+    useEffect(() => { checkAuth(); }, []);
 
     async function checkAuth() {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-            window.location.href = '/login';
-            return null;
-        }
+        if (!user) { window.location.href = '/login'; return; }
         setUser(user);
-        return user;
     }
 
     async function handleSignOut() {
@@ -82,69 +72,60 @@ export default function DashboardPage() {
 
     const renderSection = () => {
         switch (activeTab) {
-            case 'home':
-                return <HomeSection onNavigate={setActiveTab} />;
-            case 'search':
-                return <SearchSection />;
-            case 'assistant':
-                return <AssistantSection />;
-            case 'chats':
-                return <ChatsSection />;
-            case 'attachments':
-                return <AttachmentsSection />;
-            case 'summaries':
-                return <SummariesSection />;
-            case 'contacts':
-                return <ContactsSection />;
-            case 'sentiment':
-                return <SentimentSection />;
-            case 'labels':
-                return <LabelsSection />;
-            case 'reminders':
-                return <RemindersSection />;
-            case 'commitments':
-                return <CommitmentsSection />;
-            case 'templates':
-                return <TemplatesSection />;
-            case 'analytics':
-                return <AnalyticsSection />;
-            case 'reports':
-                return <ReportsSection />;
-            case 'settings':
-                return <SettingsSection />;
-            default:
-                return <HomeSection onNavigate={setActiveTab} />;
+            case 'home': return <HomeSection onNavigate={setActiveTab} />;
+            case 'search': return <SearchSection />;
+            case 'assistant': return <AssistantSection />;
+            case 'chats': return <ChatsSection />;
+            case 'attachments': return <AttachmentsSection />;
+            case 'summaries': return <SummariesSection />;
+            case 'contacts': return <ContactsSection />;
+            case 'sentiment': return <SentimentSection />;
+            case 'labels': return <LabelsSection />;
+            case 'reminders': return <RemindersSection />;
+            case 'commitments': return <CommitmentsSection />;
+            case 'templates': return <TemplatesSection />;
+            case 'analytics': return <AnalyticsSection />;
+            case 'reports': return <ReportsSection />;
+            case 'settings': return <SettingsSection />;
+            default: return <HomeSection onNavigate={setActiveTab} />;
         }
     };
 
     return (
-        <div className="h-screen flex flex-col bg-gray-50">
+        <div className="h-screen flex flex-col bg-slate-50">
             {/* Header */}
-            <header className="bg-white border-b border-gray-200 px-4 md:px-6 py-3 flex-shrink-0 z-20">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
-                            <MessageSquare className="w-5 h-5 text-white" />
+            <header className="bg-white border-b border-slate-200 px-4 md:px-6 flex-shrink-0 z-20">
+                <div className="flex items-center justify-between h-14">
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center shadow-sm">
+                            <MessageSquare className="w-4.5 h-4.5 text-white" />
                         </div>
-                        <h1 className="text-xl font-bold text-gray-900">Rememora</h1>
+                        <h1 className="text-lg font-bold text-slate-900 tracking-tight">Rememora</h1>
                     </div>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3">
                         {bridgeStatus.connected ? (
-                            <div className="flex items-center gap-2">
-                                <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse"></span>
-                                <span className="text-sm text-green-600 font-medium hidden sm:inline">
+                            <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1">
+                                <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                                <span className="text-xs text-emerald-700 font-medium hidden sm:inline">
                                     {bridgeStatus.name || bridgeStatus.phone || 'Connected'}
                                 </span>
                             </div>
                         ) : (
-                            <a href="/dashboard/connect" className="flex items-center gap-2 text-sm text-orange-600 hover:text-orange-700 font-medium">
-                                <span className="w-2.5 h-2.5 bg-orange-400 rounded-full"></span>
-                                <span className="hidden sm:inline">Connect WhatsApp</span>
+                            <a
+                                href="/dashboard/connect"
+                                className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-full px-3 py-1 hover:bg-amber-100 transition-colors"
+                            >
+                                <span className="w-2 h-2 bg-amber-400 rounded-full" />
+                                <span className="text-xs text-amber-700 font-medium hidden sm:inline">Connect WhatsApp</span>
                             </a>
                         )}
-                        <span className="text-sm text-gray-500 hidden md:inline">{user?.email}</span>
-                        <button onClick={handleSignOut} className="text-gray-500 hover:text-gray-700" title="Sign out">
-                            <LogOut className="w-5 h-5" />
+                        <span className="text-xs text-slate-400 hidden md:inline">{user?.email}</span>
+                        <button
+                            onClick={handleSignOut}
+                            className="text-slate-400 hover:text-slate-600 transition-colors p-1.5 hover:bg-slate-100 rounded-lg"
+                            title="Sign out"
+                        >
+                            <LogOut className="w-4 h-4" />
                         </button>
                     </div>
                 </div>
@@ -169,10 +150,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Mobile bottom tab bar */}
-            <MobileTabBar
-                activeTab={activeTab}
-                onTabChange={setActiveTab}
-            />
+            <MobileTabBar activeTab={activeTab} onTabChange={setActiveTab} />
         </div>
     );
 }
