@@ -2,16 +2,17 @@
 
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { MessageSquare, Mail, Lock, Loader2 } from 'lucide-react';
+import { MessageSquare, Mail, Lock, Loader2, ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
+import Link from 'next/link';
 
 export default function LoginPage() {
-        const [email, setEmail] = useState('');
-        const [password, setPassword] = useState('');
-        const [isSignUp, setIsSignUp] = useState(false);
-        const [isForgotPassword, setIsForgotPassword] = useState(false);
-        const [loading, setLoading] = useState(false);
-        const [error, setError] = useState('');
-        const [message, setMessage] = useState('');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [isSignUp, setIsSignUp] = useState(false);
+    const [isForgotPassword, setIsForgotPassword] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [message, setMessage] = useState('');
 
     async function handleForgotPassword(e: React.FormEvent) {
         e.preventDefault();
@@ -31,117 +32,200 @@ export default function LoginPage() {
     }
 
     async function handleSubmit(e: React.FormEvent) {
-                e.preventDefault();
-                setLoading(true);
-                setError('');
-                setMessage('');
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+        setMessage('');
 
-            try {
-                            if (isSignUp) {
-                                                const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}/auth/callback` } });
-                                                if (error) throw error;
-                                                setMessage('Check your email for a confirmation link.');
-                            } else {
-                                                const { error } = await supabase.auth.signInWithPassword({ email, password });
-                                                if (error) throw error;
-                                                window.location.href = '/dashboard';
-                            }
-            } catch (err: any) {
-                            setError(err.message);
+        try {
+            if (isSignUp) {
+                const { error } = await supabase.auth.signUp({
+                    email,
+                    password,
+                    options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+                });
+                if (error) throw error;
+                setMessage('Check your email for a confirmation link.');
+            } else {
+                const { error } = await supabase.auth.signInWithPassword({ email, password });
+                if (error) throw error;
+                window.location.href = '/dashboard';
             }
-                setLoading(false);
+        } catch (err: any) {
+            setError(err.message);
+        }
+        setLoading(false);
     }
 
     return (
-                <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center px-4">
-                            <div className="w-full max-w-md">
-                                            <div className="text-center mb-8">
-                                                                <div className="w-16 h-16 bg-green-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                                                                                        <MessageSquare className="w-9 h-9 text-white" />
-                                                                </div>
-                                                                <h1 className="text-3xl font-bold text-gray-900">ChatVault AI</h1>
-                                                                <p className="text-gray-500 mt-2">Your WhatsApp memory, searchable</p>
-                                            </div>
-                            
-                                            <div className="bg-white rounded-2xl shadow-xl p-8">
-                                                                <h2 className="text-xl font-semibold text-gray-900 mb-6">
-                                                                    {isForgotPassword ? 'Reset Password' : isSignUp ? 'Create Account' : 'Welcome Back'}
-                                                                </h2>
-                                            
-                                                                <form onSubmit={isForgotPassword ? handleForgotPassword : handleSubmit} className="space-y-4">
-                                                                                        <div>
-                                                                                                                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                                                                                                                    <div className="relative">
-                                                                                                                                                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                                                                                                                                    <input
-                                                                                                                                                                                            type="email"
-                                                                                                                                                                                            value={email}
-                                                                                                                                                                                            onChange={(e: any) => setEmail(e.target.value)}
-                                                                                                                                                                                            required
-                                                                                                                                                                                            className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900"
-                                                                                                                                                                                            placeholder="you@example.com"
-                                                                                                                                                                                        />
-                                                                                                                        </div>
-                                                                                            </div>
-                                                                
-                                                                                        {!isForgotPassword && (
-                                                                                        <div>
-                                                                                                                    <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                                                                                                                    <div className="relative">
-                                                                                                                                                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                                                                                                                                    <input
-                                                                                                                                                                                            type="password"
-                                                                                                                                                                                            value={password}
-                                                                                                                                                                                            onChange={(e: any) => setPassword(e.target.value)}
-                                                                                                                                                                                            required
-                                                                                                                                                                                            minLength={6}
-                                                                                                                                                                                            className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900"
-                                                                                                                                                                                            placeholder="••••••••"
-                                                                                                                                                                                        />
-                                                                                                                        </div>
-                                                                                            </div>
-                                                                                        )}
-                                                                
-                                                                    {error && (
-                                                <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">{error}</div>
-                                                                                        )}
-                                                                    {message && (
-                                                <div className="p-3 bg-green-50 text-green-700 rounded-lg text-sm">{message}</div>
-                                                                                        )}
-                                                                
-                                                                                        <button
-                                                                                                                        type="submit"
-                                                                                                                        disabled={loading}
-                                                                                                                        className="w-full py-3 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
-                                                                                                                    >
-                                                                                            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-                                                                                            {isForgotPassword ? 'Send Reset Link' : isSignUp ? 'Sign Up' : 'Sign In'}
-                                                                                            </button>
-                                                                </form>
-
-                                                                <div className="mt-6 text-center space-y-2">
-                                                                                        {!isForgotPassword && !isSignUp && (
-                                                                                            <button
-                                                                                                onClick={() => { setIsForgotPassword(true); setError(''); setMessage(''); }}
-                                                                                                className="text-sm text-gray-500 hover:text-gray-700 block w-full"
-                                                                                            >
-                                                                                                Forgot your password?
-                                                                                            </button>
-                                                                                        )}
-                                                                                        <button
-                                                                                                                        onClick={() => { setIsSignUp(!isSignUp); setIsForgotPassword(false); setError(''); setMessage(''); }}
-                                                                                                                        className="text-sm text-green-600 hover:text-green-700"
-                                                                                                                    >
-                                                                                            {isForgotPassword ? 'Back to Sign In' : isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
-                                                                                            </button>
-                                                                </div>
-                                            </div>
-                            
-                                            <p className="text-center text-xs text-gray-400 mt-8">
-                                                                By signing in, you agree to our Terms of Service and Privacy Policy.
-                                                                Your WhatsApp messages will be stored securely and encrypted at rest.
-                                            </p>
-                            </div>
+        <div className="min-h-screen flex">
+            {/* Left panel - Branding */}
+            <div className="hidden lg:flex lg:w-1/2 bg-surface-900 relative overflow-hidden items-center justify-center p-12">
+                {/* Decorative elements */}
+                <div className="absolute inset-0">
+                    <div className="absolute top-20 left-20 w-64 h-64 bg-brand-500/10 rounded-full blur-3xl" />
+                    <div className="absolute bottom-20 right-20 w-80 h-80 bg-brand-400/10 rounded-full blur-3xl" />
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-brand-500/5 rounded-full blur-3xl" />
                 </div>
-            );
+
+                <div className="relative z-10 max-w-md">
+                    <div className="w-14 h-14 bg-gradient-to-br from-brand-400 to-brand-600 rounded-2xl flex items-center justify-center mb-8 shadow-lg shadow-brand-500/30">
+                        <MessageSquare className="w-7 h-7 text-white" />
+                    </div>
+                    <h1 className="text-4xl font-bold text-white leading-tight mb-4">
+                        Your WhatsApp,{' '}
+                        <span className="text-brand-400">supercharged</span>
+                    </h1>
+                    <p className="text-surface-400 text-lg leading-relaxed mb-8">
+                        Search across all your conversations with AI. Find messages, documents, and decisions in seconds.
+                    </p>
+
+                    {/* Feature bullets */}
+                    <div className="space-y-4">
+                        {[
+                            'AI-powered semantic search',
+                            'Automatic chat summaries',
+                            'Commitment & deadline tracking',
+                        ].map((feature) => (
+                            <div key={feature} className="flex items-center gap-3 text-surface-300">
+                                <div className="w-6 h-6 bg-brand-500/20 border border-brand-500/30 rounded-md flex items-center justify-center flex-shrink-0">
+                                    <Sparkles className="w-3 h-3 text-brand-400" />
+                                </div>
+                                <span className="text-sm">{feature}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Right panel - Auth form */}
+            <div className="flex-1 flex items-center justify-center p-6 bg-surface-50">
+                <div className="w-full max-w-md">
+                    {/* Mobile logo */}
+                    <div className="lg:hidden flex items-center gap-3 mb-8">
+                        <div className="w-10 h-10 bg-gradient-to-br from-brand-500 to-brand-700 rounded-xl flex items-center justify-center shadow-lg shadow-brand-500/20">
+                            <MessageSquare className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="text-xl font-bold text-surface-900 tracking-tight">
+                            ChatVault<span className="text-brand-600">.ai</span>
+                        </span>
+                    </div>
+
+                    {/* Back to home */}
+                    <Link
+                        href="/"
+                        className="inline-flex items-center gap-1.5 text-sm text-surface-500 hover:text-surface-700 transition-colors mb-8"
+                    >
+                        <ArrowLeft className="w-4 h-4" />
+                        Back to home
+                    </Link>
+
+                    {/* Form card */}
+                    <div className="bg-white rounded-2xl shadow-xl shadow-surface-900/5 border border-surface-100 p-8">
+                        <h2 className="text-2xl font-bold text-surface-900 mb-1">
+                            {isForgotPassword ? 'Reset password' : isSignUp ? 'Create your account' : 'Welcome back'}
+                        </h2>
+                        <p className="text-surface-500 text-sm mb-8">
+                            {isForgotPassword
+                                ? 'Enter your email and we\'ll send you a reset link.'
+                                : isSignUp
+                                ? 'Start searching your WhatsApp in minutes.'
+                                : 'Sign in to access your WhatsApp memory.'}
+                        </p>
+
+                        <form onSubmit={isForgotPassword ? handleForgotPassword : handleSubmit} className="space-y-5">
+                            {/* Email field */}
+                            <div>
+                                <label className="block text-sm font-medium text-surface-700 mb-1.5">Email</label>
+                                <div className="relative">
+                                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
+                                    <input
+                                        type="email"
+                                        value={email}
+                                        onChange={(e: any) => setEmail(e.target.value)}
+                                        required
+                                        className="input-modern pl-10"
+                                        placeholder="you@example.com"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Password field */}
+                            {!isForgotPassword && (
+                                <div>
+                                    <label className="block text-sm font-medium text-surface-700 mb-1.5">Password</label>
+                                    <div className="relative">
+                                        <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
+                                        <input
+                                            type="password"
+                                            value={password}
+                                            onChange={(e: any) => setPassword(e.target.value)}
+                                            required
+                                            minLength={6}
+                                            className="input-modern pl-10"
+                                            placeholder="Min. 6 characters"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Error / Success messages */}
+                            {error && (
+                                <div className="p-3.5 bg-red-50 border border-red-100 text-red-700 rounded-xl text-sm">
+                                    {error}
+                                </div>
+                            )}
+                            {message && (
+                                <div className="p-3.5 bg-brand-50 border border-brand-100 text-brand-700 rounded-xl text-sm">
+                                    {message}
+                                </div>
+                            )}
+
+                            {/* Submit button */}
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="btn-primary w-full flex items-center justify-center gap-2"
+                            >
+                                {loading ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    <>
+                                        {isForgotPassword ? 'Send Reset Link' : isSignUp ? 'Create Account' : 'Sign In'}
+                                        <ArrowRight className="w-4 h-4" />
+                                    </>
+                                )}
+                            </button>
+                        </form>
+
+                        {/* Secondary actions */}
+                        <div className="mt-6 pt-6 border-t border-surface-100 text-center space-y-3">
+                            {!isForgotPassword && !isSignUp && (
+                                <button
+                                    onClick={() => { setIsForgotPassword(true); setError(''); setMessage(''); }}
+                                    className="text-sm text-surface-500 hover:text-surface-700 transition-colors block w-full"
+                                >
+                                    Forgot your password?
+                                </button>
+                            )}
+                            <button
+                                onClick={() => { setIsSignUp(!isSignUp); setIsForgotPassword(false); setError(''); setMessage(''); }}
+                                className="text-sm font-medium text-brand-600 hover:text-brand-700 transition-colors"
+                            >
+                                {isForgotPassword
+                                    ? 'Back to Sign In'
+                                    : isSignUp
+                                    ? 'Already have an account? Sign in'
+                                    : "Don't have an account? Sign up"}
+                            </button>
+                        </div>
+                    </div>
+
+                    <p className="text-center text-xs text-surface-400 mt-6 leading-relaxed">
+                        By continuing, you agree to our Terms of Service and Privacy Policy.
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
 }
