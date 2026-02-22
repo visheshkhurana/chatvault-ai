@@ -1097,7 +1097,15 @@ function AnalyticsSection() {
         },
       });
       const data = await response.json();
-      setAnalytics(data.analytics);
+      setAnalytics({
+              total_messages: data.totalMessages || 0,
+              active_chats: data.chatActivity?.length || 0,
+              top_contact: data.topContacts?.[0]?.name || 'N/A',
+              message_volume: data.messageVolume || [],
+              hourly_distribution: data.hourlyDistribution || [],
+              top_contacts: data.topContacts || [],
+              message_types: data.messageTypeBreakdown || [],
+            });
     } catch (err) {
       console.error('Failed to load analytics:', err);
     }
@@ -1274,7 +1282,16 @@ function SettingsSection() {
         },
       });
       const data = await response.json();
-      setSettings(data.settings);
+      setSettings({
+              display_name: data.profile?.displayName || '',
+              email: data.profile?.email || '',
+              timezone: data.profile?.timezone || 'UTC',
+              daily_summary: data.notifications?.dailySummary ?? false,
+              weekly_summary: data.notifications?.weeklySummary ?? false,
+              commitment_alerts: data.notifications?.commitmentAlerts ?? true,
+              privacy_zones: JSON.stringify(data.privacyZones || []),
+              data_retention_days: data.profile?.dataRetentionDays || 365,
+            });
     } catch (err) {
       console.error('Failed to load settings:', err);
     }
@@ -1287,15 +1304,33 @@ function SettingsSection() {
     try {
       const session = await supabase.auth.getSession();
       const response = await fetch('/api/settings', {
-        method: 'PATCH',
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.data.session?.access_token}`,
         },
-        body: JSON.stringify(updates),
+        body: JSON.stringify({
+                displayName: updates.display_name,
+                timezone: updates.timezone,
+                dataRetentionDays: updates.data_retention_days,
+                notifications: {
+                  daily_summary: updates.daily_summary,
+                  weekly_summary: updates.weekly_summary,
+                  commitment_alerts: updates.commitment_alerts,
+                },
+              }),
       });
       const data = await response.json();
-      setSettings(data.settings);
+      setSettings({
+              display_name: data.profile?.displayName || '',
+              email: data.profile?.email || '',
+              timezone: data.profile?.timezone || 'UTC',
+              daily_summary: data.notifications?.dailySummary ?? false,
+              weekly_summary: data.notifications?.weeklySummary ?? false,
+              commitment_alerts: data.notifications?.commitmentAlerts ?? true,
+              privacy_zones: JSON.stringify(data.privacyZones || []),
+              data_retention_days: data.profile?.dataRetentionDays || 365,
+            });
     } catch (err) {
       console.error('Failed to save settings:', err);
     }
