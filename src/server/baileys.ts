@@ -39,11 +39,11 @@ let syncStats = { chats: 0, messages: 0, contacts: 0, startedAt: null as Date | 
 const app = express();
 app.use(cors());
 
-app.get('/', (_req, res) => {
+app.get('/', (_req: any, res: any) => {
     res.json({ service: 'chatvault-baileys-bridge', status: connectionStatus, uptime: process.uptime() });
 });
 
-app.get('/qr', (req, res) => {
+app.get('/qr', (req: any, res: any) => {
   const embed = req.query.embed === '1';
   if (connectionStatus === 'connected') {
     if (embed) return res.send('<html><body style="display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#f0fdf4"><p style="font-family:sans-serif;color:#16a34a;font-size:18px">Connected</p></body></html>');
@@ -59,14 +59,15 @@ app.get('/qr', (req, res) => {
   res.send('<html><body style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif"><div style="text-align:center"><h1>Scan QR with WhatsApp</h1><p>WhatsApp > Linked Devices > Link a Device</p><img src="' + qrCode + '" style="margin:20px;border:4px solid #3b82f6;border-radius:12px"/><script>setTimeout(()=>location.reload(),20000)<\/script></div></body></html>');
 });
 
-app.get('/sync', (_req, res) => {
+app.get('/sync', (_req: any, res: any) => {
     res.json({ ...syncStats, connectionStatus });
 });
 
-app.get('/health', (_req, res) => {
+app.get('/health', (_req: any, res: any) => {
     res.json({ ok: connectionStatus === 'connected', status: connectionStatus });
+});
 
-app.get('/status', (_req, res) => {
+app.get('/status', (_req: any, res: any) => {
     res.json({
       connected: connectionStatus === 'connected',
       status: connectionStatus,
@@ -74,7 +75,6 @@ app.get('/status', (_req, res) => {
       phone: sock?.user?.id?.split(':')[0]?.split('@')[0] || null,
       name: sock?.user?.name || null,
     });
-});
 });
 
 // ================================================================
@@ -99,10 +99,16 @@ async function ensureOwnerUser(): Promise<string> {
         return ownerUserId!;
   }
 
-// No user exists – create one. Look up auth user first.
+// No user exists – create one. Look up auth user by matching email or phone.
         const { data: authUsers } = await supabase.auth.admin.listUsers();
-        const authUser = authUsers?.users?.[0];
+        // Try to find an auth user whose phone matches the WhatsApp number
+        const authUser = authUsers?.users?.find((u: any) =>
+            u.phone === phoneNumber || u.user_metadata?.phone === phoneNumber
+        ) || authUsers?.users?.[0]; // Fallback to first user only if single-user setup
         if (!authUser) throw new Error('No auth user found in system');
+        if (authUsers?.users && authUsers.users.length > 1 && authUser === authUsers.users[0]) {
+            logger.warn('Multiple auth users found but none match WhatsApp phone. Using first user as fallback.');
+        }
 
         const { data: newUser, error } = await supabase
             .from('users')
@@ -204,7 +210,7 @@ async function startBaileys() {
         syncFullHistory: true,
   });
 
-  sock.ev.on('connection.update', async (update) => {
+  sock.ev.on('connection.update', async (update: any) => {
         const { connection, lastDisconnect, qr } = update;
         if (qr) {
                 qrCode = await QRCode.toDataURL(qr);
@@ -235,7 +241,7 @@ async function startBaileys() {
     });
 
     // Handle full history set events (contacts, chats, messages in bulk)
-    sock.ev.on('messaging-history.set', async ({ chats: histChats, contacts: histContacts, messages: histMsgs, isLatest }) => {
+    sock.ev.on('messaging-history.set', async ({ chats: histChats, contacts: histContacts, messages: histMsgs, isLatest }: any) => {
         logger.info({ chats: histChats.length, contacts: histContacts.length, messages: histMsgs.length, isLatest }, 'History set received');
         syncStats.inProgress = true;
         if (!syncStats.startedAt) syncStats.startedAt = new Date();
@@ -252,7 +258,9 @@ async function startBaileys() {
                         await ensureContact(userId, phone, cId);
                         syncStats.contacts++;
                     }
-                } catch {}
+                } catch (err) {
+                    logger.warn({ err, contactId: c.id }, 'Failed to process contact during sync');
+                }
             }
 
             // Process chats
@@ -264,7 +272,9 @@ async function startBaileys() {
                         await ensureChat(userId, chatJid, isGroup);
                         syncStats.chats++;
                     }
-                } catch {}
+                } catch (err) {
+                    logger.warn({ err, chatId: ch.id }, 'Failed to process chat during sync');
+                }
             }
 
             // Process historical messages
@@ -287,7 +297,7 @@ async function startBaileys() {
         }
     });
 
-  sock.ev.on('messages.upsert', async ({ messages, type }) => {
+  sock.ev.on('messages.upsert', async ({ messages, type }: any) => {
         const isHistory = type === 'append';
         if (type !== 'notify' && type !== 'append') return;
         if (isHistory) {
@@ -390,7 +400,9 @@ async function handleMessage(msg: proto.IWebMessageInfo, isHistory = false) {
   if (text && text.length > 10 && stored && !isHistory) {
         try {
                 await generateEmbedding(userId, chatId, stored.id, text);
-        } catch {}
+        } catch (err) {
+                logger.error({ err, messageId: stored.id }, 'Failed to generate embedding for message');
+        }
   }
 }
 
@@ -454,7 +466,9 @@ async function ensureChat(userId: string, jid: string, isGroup: boolean): Promis
     if (isGroup && sock) {
           try {
                   chatTitle = (await sock.groupMetadata(jid)).subject || chatTitle;
-          } catch {}
+          } catch (err) {
+                  logger.debug({ err, jid }, 'Failed to fetch group metadata, using JID as title');
+          }
     }
 
   const { data: c, error } = await supabase

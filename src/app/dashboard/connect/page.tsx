@@ -28,7 +28,7 @@ export default function ConnectPage() {
         checkStatus();
         const interval = setInterval(() => {
             checkStatus();
-            setQrKey(k => k + 1);
+            setQrKey((k: number) => k + 1);
         }, 15000);
 
         return () => clearInterval(interval);

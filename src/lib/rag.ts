@@ -76,6 +76,8 @@ export async function queryRAG(params: RAGQuery): Promise<RAGResponse> {
         query,
         matchCount: maxResults,
         chatId,
+        dateFrom,
+        dateTo,
   });
 
   if (searchResults.length === 0) {
@@ -90,7 +92,7 @@ export async function queryRAG(params: RAGQuery): Promise<RAGResponse> {
   const enrichedResults = await enrichSearchResults(searchResults, userId);
 
   // Step 3: Build context for the LLM
-  const contextParts = enrichedResults.map((r, i) => {
+  const contextParts = enrichedResults.map((r: any, i: number) => {
         const parts = [`[${i + 1}]`];
         if (r.senderName) parts.push(`From: ${r.senderName}`);
         if (r.chatTitle) parts.push(`Chat: ${r.chatTitle}`);
@@ -122,15 +124,15 @@ export async function queryRAG(params: RAGQuery): Promise<RAGResponse> {
   let relatedAttachments: any[] = [];
     if (includeAttachments) {
           const attachmentIds = enrichedResults
-            .filter((r) => r.attachmentId)
-            .map((r) => r.attachmentId);
+            .filter((r: any) => r.attachmentId)
+            .map((r: any) => r.attachmentId);
 
       if (attachmentIds.length > 0) {
               const { data } = await supabaseAdmin
                 .from('attachments')
                 .select('id, file_name, file_type, storage_url')
                 .in('id', attachmentIds);
-              relatedAttachments = (data || []).map((a) => ({
+              relatedAttachments = (data || []).map((a: any) => ({
                         id: a.id,
                         fileName: a.file_name,
                         fileType: a.file_type,
@@ -140,7 +142,7 @@ export async function queryRAG(params: RAGQuery): Promise<RAGResponse> {
     }
 
   // Step 6: Build citations
-  const citations = enrichedResults.map((r) => ({
+  const citations = enrichedResults.map((r: any) => ({
         messageId: r.messageId,
         chatId: r.chatId,
         text: r.chunk_text.substring(0, 200),
@@ -155,8 +157,8 @@ export async function queryRAG(params: RAGQuery): Promise<RAGResponse> {
 // --- Enrich search results with metadata ---
 
 async function enrichSearchResults(results: any[], userId: string) {
-    const messageIds = results.filter((r) => r.message_id).map((r) => r.message_id);
-    const chatIds = [...new Set(results.map((r) => r.chat_id))];
+    const messageIds = results.filter((r: any) => r.message_id).map((r: any) => r.message_id);
+    const chatIds = [...new Set(results.map((r: any) => r.chat_id))];
 
   // Fetch messages
   const { data: messages } = messageIds.length > 0
@@ -172,10 +174,10 @@ async function enrichSearchResults(results: any[], userId: string) {
       .select('id, title')
       .in('id', chatIds);
 
-  const messageMap = new Map((messages || []).map((m) => [m.id, m]));
-    const chatMap = new Map((chats || []).map((c) => [c.id, c]));
+  const messageMap = new Map<string, any>((messages || []).map((m: any) => [m.id, m]));
+    const chatMap = new Map<string, any>((chats || []).map((c: any) => [c.id, c]));
 
-  return results.map((r) => {
+  return results.map((r: any) => {
         const message = messageMap.get(r.message_id);
         const chat = chatMap.get(r.chat_id);
         return {
@@ -218,8 +220,8 @@ export async function generateChatSummary(params: {
 
   // Format messages for LLM
   const formattedMessages = messages
-      .filter((m) => m.text_content)
-      .map((m) => `[${new Date(m.timestamp).toLocaleString()}] ${m.sender_name || 'Unknown'}: ${m.text_content}`)
+      .filter((m: any) => m.text_content)
+      .map((m: any) => `[${new Date(m.timestamp).toLocaleString()}] ${m.sender_name || 'Unknown'}: ${m.text_content}`)
       .join('\n');
 
   const completion = await openai.chat.completions.create({

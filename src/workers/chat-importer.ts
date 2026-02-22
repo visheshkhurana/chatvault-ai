@@ -116,8 +116,9 @@ async function importChat(params: {
     chatTitle: string;
     chatType: 'individual' | 'group';
     fileContent: string;
+    myName?: string;
 }) {
-    const { userId, chatTitle, chatType, fileContent } = params;
+    const { userId, chatTitle, chatType, fileContent, myName } = params;
 
   console.log(`[ChatImporter] Parsing export for "${chatTitle}"...`);
     const messages = parseWhatsAppExport(fileContent);
@@ -187,7 +188,7 @@ async function importChat(params: {
                 sender_name: msg.sender,
                 message_type: msg.text.includes('<Media omitted>') ? 'image' : 'text',
                 text_content: msg.text,
-                is_from_me: false,
+                is_from_me: myName ? msg.sender.toLowerCase() === myName.toLowerCase() : false,
                 timestamp: msg.timestamp.toISOString(),
         }));
 
@@ -203,32 +204,32 @@ async function importChat(params: {
       }
   }
 
-  // Generate embeddings for imported messages
+  // Generate embeddings for imported messages in batches
   console.log('[ChatImporter] Generating embeddings...');
     let embedded = 0;
+    const EMBED_BATCH_SIZE = 10;
+    const embeddableMessages = messages.filter(
+        msg => msg.text && msg.text.length > 10 && !msg.text.includes('<Media omitted>')
+    );
 
-  for (const msg of messages) {
-        if (msg.text && msg.text.length > 10 && !msg.text.includes('<Media omitted>')) {
-                try {
-                          await storeEmbeddings({
-                                      userId,
-                                      chatId: chat.id,
-                                      text: msg.text,
-                                      metadata: {
-                                                    sender_name: msg.sender,
-                                                    timestamp: msg.timestamp.toISOString(),
-                                                    chat_title: chatTitle,
-                                                    source: 'import',
-                                      },
-                          });
-                          embedded++;
-                          if (embedded % 20 === 0) {
-                                      console.log(`[ChatImporter] Embedded ${embedded} messages`);
-                          }
-                } catch (err) {
-                          console.error(`[ChatImporter] Embedding error:`, err);
-                }
-        }
+  for (let i = 0; i < embeddableMessages.length; i += EMBED_BATCH_SIZE) {
+        const batch = embeddableMessages.slice(i, i + EMBED_BATCH_SIZE);
+        const embedPromises = batch.map(msg =>
+            storeEmbeddings({
+                userId,
+                chatId: chat.id,
+                text: msg.text,
+                metadata: {
+                    sender_name: msg.sender,
+                    timestamp: msg.timestamp.toISOString(),
+                    chat_title: chatTitle,
+                    source: 'import',
+                },
+            }).then(() => { embedded++; })
+              .catch(err => console.error(`[ChatImporter] Embedding error for message from ${msg.sender}:`, err))
+        );
+        await Promise.all(embedPromises);
+        console.log(`[ChatImporter] Embedded ${embedded}/${embeddableMessages.length} messages`);
   }
 
   console.log(`[ChatImporter] Done! Imported ${imported} messages, embedded ${embedded}`);
@@ -238,13 +239,14 @@ async function importChat(params: {
 
 async function main() {
     const args = process.argv.slice(2);
-    const fileArg = args.find((a) => a.startsWith('--file='));
-    const userIdArg = args.find((a) => a.startsWith('--userId='));
-    const titleArg = args.find((a) => a.startsWith('--title='));
-    const typeArg = args.find((a) => a.startsWith('--type='));
+    const fileArg = args.find((a: any) => a.startsWith('--file='));
+    const userIdArg = args.find((a: any) => a.startsWith('--userId='));
+    const titleArg = args.find((a: any) => a.startsWith('--title='));
+    const typeArg = args.find((a: any) => a.startsWith('--type='));
+    const myNameArg = args.find((a: any) => a.startsWith('--myName='));
 
   if (!fileArg || !userIdArg) {
-        console.log('Usage: npm run import:chat -- --file=path/to/chat.txt --userId=uuid [--title="Chat Name"] [--type=individual|group]');
+        console.log('Usage: npm run import:chat -- --file=path/to/chat.txt --userId=uuid [--title="Chat Name"] [--type=individual|group] [--myName="Your Name"]');
         process.exit(1);
   }
 
@@ -252,13 +254,22 @@ async function main() {
     const userId = userIdArg.split('=')[1];
     const chatTitle = titleArg?.split('=')[1] || 'Imported Chat';
     const chatType = (typeArg?.split('=')[1] as 'individual' | 'group') || 'individual';
+    const myName = myNameArg?.split('=')[1];
 
   const fs = await import('fs');
     const fileContent = fs.readFileSync(filePath, 'utf-8');
 
-  await importChat({ userId, chatTitle, chatType, fileContent });
+  await importChat({ userId, chatTitle, chatType, fileContent, myName });
 }
 
-main().catch(console.error);
+main()
+    .then(() => {
+        console.log('[ChatImporter] Completed successfully.');
+        process.exit(0);
+    })
+    .catch((err) => {
+        console.error('[ChatImporter] Fatal error:', err);
+        process.exit(1);
+    });
 
 export { parseWhatsAppExport, importChat };

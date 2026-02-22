@@ -86,12 +86,12 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 // --- Generate Embeddings in Batch ---
 
 export async function generateEmbeddingsBatch(texts: string[]): Promise<number[][]> {
-    const cleanTexts = texts.map((t) => t.replace(/\n/g, ' ').trim());
+    const cleanTexts = texts.map((t: any) => t.replace(/\n/g, ' ').trim());
     const response = await openai.embeddings.create({
           model: EMBEDDING_MODEL,
           input: cleanTexts,
     });
-    return response.data.map((d) => d.embedding);
+    return response.data.map((d: any) => d.embedding);
 }
 
 // --- Store Embeddings ---
@@ -182,8 +182,21 @@ export async function hybridSearch(params: {
     query: string;
     matchCount?: number;
     chatId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    vectorWeight?: number;
+    textWeight?: number;
 }): Promise<any[]> {
-    const { userId, query, matchCount = 10, chatId } = params;
+    const {
+        userId,
+        query,
+        matchCount = 10,
+        chatId,
+        dateFrom,
+        dateTo,
+        vectorWeight = 0.7,
+        textWeight = 0.3,
+    } = params;
 
   const queryEmbedding = await generateEmbedding(query);
 
@@ -192,9 +205,11 @@ export async function hybridSearch(params: {
         p_query_embedding: JSON.stringify(queryEmbedding),
         p_query_text: query,
         p_match_count: matchCount,
-        p_vector_weight: 0.7,
-        p_text_weight: 0.3,
+        p_vector_weight: vectorWeight,
+        p_text_weight: textWeight,
         p_chat_id: chatId || null,
+        p_date_from: dateFrom || null,
+        p_date_to: dateTo || null,
   });
 
   if (error) {

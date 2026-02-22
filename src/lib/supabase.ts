@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // ============================================================
 // Supabase Client Configuration
@@ -9,18 +9,36 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 // Client-side Supabase client (uses anon key, respects RLS)
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Note: Using `any` as Database type until `supabase gen types` is run
+export const supabase: SupabaseClient<any> = createClient(supabaseUrl, supabaseAnonKey);
 
 // Server-side Supabase client (uses service role key, bypasses RLS)
 // Only created on server-side where SUPABASE_SERVICE_ROLE_KEY is available
-export const supabaseAdmin = supabaseServiceKey
-    ? createClient(supabaseUrl, supabaseServiceKey, {
-                auth: {
-                                autoRefreshToken: false,
-                                persistSession: false,
-                },
-    })
-        : null as any;
+function createAdminClient() {
+    if (!supabaseServiceKey) {
+        throw new Error(
+            'SUPABASE_SERVICE_ROLE_KEY is not set. Server-side operations requiring admin access will fail. ' +
+            'Ensure SUPABASE_SERVICE_ROLE_KEY is configured in your environment variables.'
+        );
+    }
+    return createClient<any>(supabaseUrl, supabaseServiceKey, {
+        auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+        },
+    });
+}
+
+// Lazy-initialized admin client — throws a clear error if service key is missing
+let _supabaseAdmin: SupabaseClient<any> | null = null;
+export const supabaseAdmin: SupabaseClient<any> = new Proxy({} as SupabaseClient<any>, {
+    get(_target, prop) {
+        if (!_supabaseAdmin) {
+            _supabaseAdmin = createAdminClient();
+        }
+        return (_supabaseAdmin as any)[prop];
+    },
+});
 
 // Types for database tables
 export interface DbUser {

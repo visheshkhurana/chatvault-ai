@@ -62,7 +62,13 @@ export function verifyWebhookSignature(
       .createHmac('sha256', APP_SECRET)
       .update(rawBody)
       .digest('hex');
-    return `sha256=${expectedSignature}` === signature;
+    const expected = `sha256=${expectedSignature}`;
+    // Use constant-time comparison to prevent timing attacks
+    if (expected.length !== signature.length) return false;
+    return crypto.timingSafeEqual(
+      Buffer.from(expected),
+      Buffer.from(signature)
+    );
 }
 
 // --- Send Messages ---

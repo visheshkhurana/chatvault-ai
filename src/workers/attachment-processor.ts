@@ -10,13 +10,30 @@ import { storeEmbeddings } from '../lib/embeddings';
 // Run via: npm run process:attachments
 // ============================================================
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+// Use OPENAI_API_KEY for Whisper transcription (direct OpenAI API required)
+// Fall back to OPENROUTER_API_KEY if OPENAI_API_KEY is not set
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY || process.env.OPENROUTER_API_KEY!,
+    ...(process.env.OPENAI_API_KEY ? {} : { baseURL: 'https://openrouter.ai/api/v1' }),
+});
 const BATCH_SIZE = 10;
+
+// --- Graceful Shutdown ---
+let isShuttingDown = false;
+function setupGracefulShutdown() {
+    const shutdown = (signal: string) => {
+        console.log(`[AttachmentProcessor] Received ${signal}. Finishing current batch...`);
+        isShuttingDown = true;
+    };
+    process.on('SIGINT', () => shutdown('SIGINT'));
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+}
 
 async function main() {
     console.log('[AttachmentProcessor] Starting...');
+    setupGracefulShutdown();
 
-  while (true) {
+  while (!isShuttingDown) {
         // Fetch unprocessed attachments
       const { data: attachments, error } = await supabaseAdmin
           .from('attachments')
@@ -132,7 +149,7 @@ async function processImage(imageUrl: string): Promise<string> {
 
       // Try Tesseract.js first (free)
       const result = await Tesseract.recognize(imageUrl, 'eng', {
-              logger: (info) => {
+              logger: (info: any) => {
                         if (info.status === 'recognizing text') {
                                     process.stdout.write(`\r[OCR] Progress: ${Math.round(info.progress * 100)}%`);
                         }
@@ -234,4 +251,12 @@ function sleep(ms: number): Promise<void> {
 }
 
 // Run the worker
-main().catch(console.error);
+main()
+    .then(() => {
+        console.log('[AttachmentProcessor] Shut down gracefully.');
+        process.exit(0);
+    })
+    .catch((err) => {
+        console.error('[AttachmentProcessor] Fatal error:', err);
+        process.exit(1);
+    });

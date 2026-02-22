@@ -1,72 +1,42 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { NextRequest } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { generateChatSummary } from '@/lib/rag';
+import { withAuth, parseBody, apiSuccess } from '@/lib/api-utils';
+import { summarizeSchema } from '@/lib/validation';
+import { z } from 'zod';
 
 // ============================================================
 // Summarize API - Generate chat summaries
 // POST /api/summarize
 // ============================================================
 
-export async function POST(req: NextRequest) {
-    try {
-          const supabase = createClient(
-                  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-                  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-            {
-                      global: {
-                                  headers: { Authorization: req.headers.get('Authorization') || '' },
-                      },
-            }
-                );
+export const POST = withAuth(async (req: NextRequest, { user }) => {
+    const parsed = await parseBody(req, summarizeSchema);
+    if (!parsed.success) return parsed.response;
 
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-          if (authError || !user) {
-                  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-          }
+    const { chatId, days } = parsed.data as z.infer<typeof summarizeSchema>;
 
-      const { data: dbUser } = await supabase
-            .from('users')
-            .select('id')
-            .eq('auth_id', user.id)
-            .single();
+    const dateTo = new Date().toISOString();
+    const dateFrom = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
-      if (!dbUser) {
-              return NextResponse.json({ error: 'User not found' }, { status: 404 });
-      }
+    const result = await generateChatSummary({
+        userId: user.id,
+        chatId,
+        dateFrom,
+        dateTo,
+    });
 
-      const body = await req.json();
-          const { chatId, days = 7 } = body;
+    // Store the summary
+    await supabaseAdmin.from('chat_summaries').insert({
+        user_id: user.id,
+        chat_id: chatId,
+        summary_type: days <= 1 ? 'daily' : 'weekly',
+        summary_text: result.summary,
+        period_start: dateFrom,
+        period_end: dateTo,
+        key_topics: result.keyTopics,
+        action_items: result.actionItems,
+    });
 
-      if (!chatId) {
-              return NextResponse.json({ error: 'chatId is required' }, { status: 400 });
-      }
-
-      const dateTo = new Date().toISOString();
-          const dateFrom = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
-
-      const result = await generateChatSummary({
-              userId: dbUser.id,
-              chatId,
-              dateFrom,
-              dateTo,
-      });
-
-      // Store the summary
-      await supabaseAdmin.from('chat_summaries').insert({
-              user_id: dbUser.id,
-              chat_id: chatId,
-              summary_type: days <= 1 ? 'daily' : 'weekly',
-              summary_text: result.summary,
-              period_start: dateFrom,
-              period_end: dateTo,
-              key_topics: result.keyTopics,
-              action_items: result.actionItems,
-      });
-
-      return NextResponse.json(result);
-    } catch (error) {
-          console.error('[Summarize API] Error:', error);
-          return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-    }
-}
+    return apiSuccess(result);
+});

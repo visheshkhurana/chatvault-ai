@@ -1,61 +1,29 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { NextRequest } from 'next/server';
 import { queryRAG } from '@/lib/rag';
+import { withAuth, parseBody, apiSuccess } from '@/lib/api-utils';
+import { searchSchema } from '@/lib/validation';
+import { z } from 'zod';
 
 // ============================================================
 // Search API - Dashboard search endpoint
 // POST /api/search
 // ============================================================
 
-export async function POST(req: NextRequest) {
-    try {
-          // Authenticate user via Supabase session
-      const supabase = createClient(
-              process.env.NEXT_PUBLIC_SUPABASE_URL!,
-              process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-                  global: {
-                              headers: { Authorization: req.headers.get('Authorization') || '' },
-                  },
-        }
-            );
+export const POST = withAuth(async (req: NextRequest, { user }) => {
+    const parsed = await parseBody(req, searchSchema);
+    if (!parsed.success) return parsed.response;
 
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-          if (authError || !user) {
-                  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-          }
+    const { query, chatId, dateFrom, dateTo, maxResults } = parsed.data as z.infer<typeof searchSchema>;
 
-      // Get internal user ID
-      const { data: dbUser } = await supabase
-            .from('users')
-            .select('id')
-            .eq('auth_id', user.id)
-            .single();
+    const result = await queryRAG({
+        userId: user.id,
+        query,
+        chatId,
+        dateFrom,
+        dateTo,
+        maxResults,
+        includeAttachments: true,
+    });
 
-      if (!dbUser) {
-              return NextResponse.json({ error: 'User not found' }, { status: 404 });
-      }
-
-      const body = await req.json();
-          const { query, chatId, dateFrom, dateTo, maxResults } = body;
-
-      if (!query || typeof query !== 'string') {
-              return NextResponse.json({ error: 'Query is required' }, { status: 400 });
-      }
-
-      const result = await queryRAG({
-              userId: dbUser.id,
-              query,
-              chatId,
-              dateFrom,
-              dateTo,
-              maxResults: maxResults || 10,
-              includeAttachments: true,
-      });
-
-      return NextResponse.json(result);
-    } catch (error) {
-          console.error('[Search API] Error:', error);
-          return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-    }
-}
+    return apiSuccess(result);
+});

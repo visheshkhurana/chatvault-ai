@@ -8,9 +8,27 @@ export default function LoginPage() {
         const [email, setEmail] = useState('');
         const [password, setPassword] = useState('');
         const [isSignUp, setIsSignUp] = useState(false);
+        const [isForgotPassword, setIsForgotPassword] = useState(false);
         const [loading, setLoading] = useState(false);
         const [error, setError] = useState('');
         const [message, setMessage] = useState('');
+
+    async function handleForgotPassword(e: React.FormEvent) {
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+        setMessage('');
+        try {
+            const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
+            });
+            if (error) throw error;
+            setMessage('Password reset link sent! Check your email.');
+        } catch (err: any) {
+            setError(err.message);
+        }
+        setLoading(false);
+    }
 
     async function handleSubmit(e: React.FormEvent) {
                 e.preventDefault();
@@ -47,10 +65,10 @@ export default function LoginPage() {
                             
                                             <div className="bg-white rounded-2xl shadow-xl p-8">
                                                                 <h2 className="text-xl font-semibold text-gray-900 mb-6">
-                                                                    {isSignUp ? 'Create Account' : 'Welcome Back'}
+                                                                    {isForgotPassword ? 'Reset Password' : isSignUp ? 'Create Account' : 'Welcome Back'}
                                                                 </h2>
                                             
-                                                                <form onSubmit={handleSubmit} className="space-y-4">
+                                                                <form onSubmit={isForgotPassword ? handleForgotPassword : handleSubmit} className="space-y-4">
                                                                                         <div>
                                                                                                                     <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                                                                                                                     <div className="relative">
@@ -58,7 +76,7 @@ export default function LoginPage() {
                                                                                                                                                     <input
                                                                                                                                                                                             type="email"
                                                                                                                                                                                             value={email}
-                                                                                                                                                                                            onChange={(e) => setEmail(e.target.value)}
+                                                                                                                                                                                            onChange={(e: any) => setEmail(e.target.value)}
                                                                                                                                                                                             required
                                                                                                                                                                                             className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900"
                                                                                                                                                                                             placeholder="you@example.com"
@@ -66,6 +84,7 @@ export default function LoginPage() {
                                                                                                                         </div>
                                                                                             </div>
                                                                 
+                                                                                        {!isForgotPassword && (
                                                                                         <div>
                                                                                                                     <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
                                                                                                                     <div className="relative">
@@ -73,7 +92,7 @@ export default function LoginPage() {
                                                                                                                                                     <input
                                                                                                                                                                                             type="password"
                                                                                                                                                                                             value={password}
-                                                                                                                                                                                            onChange={(e) => setPassword(e.target.value)}
+                                                                                                                                                                                            onChange={(e: any) => setPassword(e.target.value)}
                                                                                                                                                                                             required
                                                                                                                                                                                             minLength={6}
                                                                                                                                                                                             className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900"
@@ -81,6 +100,7 @@ export default function LoginPage() {
                                                                                                                                                                                         />
                                                                                                                         </div>
                                                                                             </div>
+                                                                                        )}
                                                                 
                                                                     {error && (
                                                 <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">{error}</div>
@@ -95,16 +115,24 @@ export default function LoginPage() {
                                                                                                                         className="w-full py-3 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
                                                                                                                     >
                                                                                             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-                                                                                            {isSignUp ? 'Sign Up' : 'Sign In'}
+                                                                                            {isForgotPassword ? 'Send Reset Link' : isSignUp ? 'Sign Up' : 'Sign In'}
                                                                                             </button>
                                                                 </form>
-                                            
-                                                                <div className="mt-6 text-center">
+
+                                                                <div className="mt-6 text-center space-y-2">
+                                                                                        {!isForgotPassword && !isSignUp && (
+                                                                                            <button
+                                                                                                onClick={() => { setIsForgotPassword(true); setError(''); setMessage(''); }}
+                                                                                                className="text-sm text-gray-500 hover:text-gray-700 block w-full"
+                                                                                            >
+                                                                                                Forgot your password?
+                                                                                            </button>
+                                                                                        )}
                                                                                         <button
-                                                                                                                        onClick={() => { setIsSignUp(!isSignUp); setError(''); setMessage(''); }}
+                                                                                                                        onClick={() => { setIsSignUp(!isSignUp); setIsForgotPassword(false); setError(''); setMessage(''); }}
                                                                                                                         className="text-sm text-green-600 hover:text-green-700"
                                                                                                                     >
-                                                                                            {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+                                                                                            {isForgotPassword ? 'Back to Sign In' : isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
                                                                                             </button>
                                                                 </div>
                                             </div>
