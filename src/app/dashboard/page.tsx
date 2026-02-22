@@ -112,7 +112,7 @@ interface Settings {
     daily_summary: boolean;
     weekly_summary: boolean;
     commitment_alerts: boolean;
-    privacy_zones: string[];
+    privacy_zones: any[];
     data_retention_days: number;
 }
 
@@ -1289,7 +1289,7 @@ function SettingsSection() {
               daily_summary: data.notifications?.dailySummary ?? false,
               weekly_summary: data.notifications?.weeklySummary ?? false,
               commitment_alerts: data.notifications?.commitmentAlerts ?? true,
-              privacy_zones: JSON.stringify(data.privacyZones || []),
+              privacy_zones: data.privacyZones || [],
               data_retention_days: data.profile?.dataRetentionDays || 365,
             });
     } catch (err) {
@@ -1328,7 +1328,7 @@ function SettingsSection() {
               daily_summary: data.notifications?.dailySummary ?? false,
               weekly_summary: data.notifications?.weeklySummary ?? false,
               commitment_alerts: data.notifications?.commitmentAlerts ?? true,
-              privacy_zones: JSON.stringify(data.privacyZones || []),
+              privacy_zones: data.privacyZones || [],
               data_retention_days: data.profile?.dataRetentionDays || 365,
             });
     } catch (err) {
