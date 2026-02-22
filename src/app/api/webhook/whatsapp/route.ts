@@ -311,7 +311,7 @@ async function handleBotCommand(
         switch (command) {
           case 'help': {
                     const helpText =
-                                `*ChatVault Commands:*\n\n` +
+                                `*Rememora Commands:*\n\n` +
                                 `*find* [keyword] - Search your messages\n` +
                                 `*search* [keyword] - Search your messages\n` +
                                 `*summary* last [N] days - Get a chat summary\n` +
@@ -319,7 +319,7 @@ async function handleBotCommand(
                                 `*show* documents about [topic] - Find documents\n` +
                                 `*brief* [contact name] - Get contact briefing\n` +
                                 `*remind* [task] by [date] or remind me to [task] - Create reminder\n` +
-                                `*status* - Show your ChatVault stats\n` +
+                                `*status* - Show your Rememora stats\n` +
                                 `*help* - Show this help message`;
                     await sendTextMessage(senderPhone, helpText);
                     break;
@@ -577,7 +577,7 @@ async function handleBotCommand(
                                 .eq('status', 'pending');
 
                     const statusText =
-                                `*Your ChatVault Stats:*\n\n` +
+                                `*Your Rememora Stats:*\n\n` +
                                 `📊 Total Messages: ${totalMessages || 0}\n` +
                                 `💬 Total Chats: ${totalChats || 0}\n` +
                                 `👥 Total Contacts: ${totalContacts || 0}\n` +

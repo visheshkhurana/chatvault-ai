@@ -45,7 +45,7 @@ export const config = {
 
     // --- Backblaze B2 Storage ---
     storage: {
-        bucketName: optionalEnv('B2_BUCKET_NAME', 'chatvault'),
+        bucketName: optionalEnv('B2_BUCKET_NAME', 'rememora'),
         region: optionalEnv('B2_REGION', 'us-west-004'),
         endpoint: process.env.B2_ENDPOINT || '',
         keyId: process.env.B2_KEY_ID || '',

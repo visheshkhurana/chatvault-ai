@@ -107,7 +107,7 @@ export default function LoginPage() {
                             <MessageSquare className="w-5 h-5 text-white" />
                         </div>
                         <span className="text-xl font-bold text-surface-900 tracking-tight">
-                            ChatVault<span className="text-brand-600">.ai</span>
+                            Rememora
                         </span>
                     </div>
 

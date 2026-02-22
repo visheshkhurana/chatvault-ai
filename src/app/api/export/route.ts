@@ -97,7 +97,7 @@ export const POST = withAuth(async (req: NextRequest, { user }) => {
         return new Response(csvRows.join('\n'), {
             headers: {
                 'Content-Type': 'text/csv',
-                'Content-Disposition': `attachment; filename="chatvault-export-${new Date().toISOString().split('T')[0]}.csv"`,
+                'Content-Disposition': `attachment; filename="rememora-export-${new Date().toISOString().split('T')[0]}.csv"`,
             },
         });
     }

@@ -16,7 +16,7 @@ import path from 'path';
 import pino from 'pino';
 
 // ================================================================
-// ChatVault AI - Baileys WhatsApp Bridge
+// Rememora - Baileys WhatsApp Bridge
 // ================================================================
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -40,7 +40,7 @@ const app = express();
 app.use(cors());
 
 app.get('/', (_req: any, res: any) => {
-    res.json({ service: 'chatvault-baileys-bridge', status: connectionStatus, uptime: process.uptime() });
+    res.json({ service: 'rememora-baileys-bridge', status: connectionStatus, uptime: process.uptime() });
 });
 
 app.get('/qr', (req: any, res: any) => {
@@ -206,7 +206,7 @@ async function startBaileys() {
         auth: state,
         logger: pino({ level: 'silent' }),
         printQRInTerminal: true,
-        browser: ['ChatVault AI', 'Chrome', '120.0'],
+        browser: ['Rememora', 'Chrome', '120.0'],
         syncFullHistory: true,
   });
 
@@ -549,7 +549,7 @@ async function generateEmbedding(userId: string, chatId: string, msgId: string, 
 // ================================================================
 
 async function main() {
-    logger.info('=== ChatVault Baileys Bridge ===');
+    logger.info('=== Rememora Baileys Bridge ===');
     app.listen(PORT, '0.0.0.0', () => logger.info('Server on port ' + PORT + ' - QR at /qr'));
     await startBaileys();
 }

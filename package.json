@@ -1,5 +1,5 @@
 {
-    "name": "chatvault-ai",
+    "name": "rememora",
     "version": "1.0.0",
     "description": "WhatsApp-native memory layer with semantic search and RAG",
     "private": true,

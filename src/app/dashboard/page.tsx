@@ -27,10 +27,27 @@ import {
   ToggleRight,
   Trash2,
   Bell,
+  Bot,
+  Heart,
+  FolderOpen,
+  FileBarChart,
+  Lightbulb,
+  Send,
+  Smile,
+  Frown,
+  Meh,
+  RefreshCw,
+  Copy,
+  Sparkles,
+  Brain,
+  TrendingUp,
+  TrendingDown,
+  Minus as MinusIcon,
+  Eye,
 } from 'lucide-react';
 
 // ============================================================
-// ChatVault AI - Dashboard Page
+// Rememora - Dashboard Page
 // Search, browse messages, view attachments, summaries
 // ============================================================
 
@@ -105,7 +122,7 @@ interface AnalyticsData {
     message_types: Array<{ type: string; count: number }>;
 }
 
-interface Settings {
+interface SettingsData {
     display_name: string;
     email: string;
     timezone: string;
@@ -116,6 +133,43 @@ interface Settings {
     data_retention_days: number;
 }
 
+interface ChatMessage {
+    role: 'user' | 'assistant';
+    content: string;
+}
+
+interface Template {
+    id: string;
+    name: string;
+    content: string;
+    category: string;
+    variables: string[];
+    use_count: number;
+    last_used_at: string;
+}
+
+interface Reminder {
+    id: string;
+    chat_id: string;
+    text: string;
+    due_at: string;
+    status: string;
+    isOverdue?: boolean;
+    created_at: string;
+}
+
+interface Label {
+    id: string;
+    name: string;
+    color: string;
+    icon: string;
+    is_smart: boolean;
+    chat_ids: string[];
+    chatCount?: number;
+}
+
+type TabType = 'search' | 'chats' | 'attachments' | 'summaries' | 'contacts' | 'commitments' | 'analytics' | 'settings' | 'assistant' | 'sentiment' | 'templates' | 'reminders' | 'labels' | 'reports';
+
 const BRIDGE_URL = process.env.NEXT_PUBLIC_BRIDGE_URL || 'https://chatvault-ai-production.up.railway.app';
 
 export default function DashboardPage() {
@@ -125,7 +179,7 @@ export default function DashboardPage() {
     const [chats, setChats] = useState<Chat[]>([]);
     const [selectedChat, setSelectedChat] = useState<string | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
-    const [activeTab, setActiveTab] = useState<'search' | 'chats' | 'attachments' | 'summaries' | 'contacts' | 'commitments' | 'analytics' | 'settings'>('search');
+    const [activeTab, setActiveTab] = useState<TabType>('search');
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
     const [user, setUser] = useState<any>(null);
@@ -226,7 +280,7 @@ export default function DashboardPage() {
                                             <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
                                                           <MessageSquare className="w-5 h-5 text-white" />
                                             </div>
-                                            <h1 className="text-xl font-bold text-gray-900">ChatVault AI</h1>
+                                            <h1 className="text-xl font-bold text-gray-900">Rememora</h1>
                                 </div>
                                 <div className="flex items-center gap-4">
                                             {bridgeStatus.connected ? (
@@ -251,17 +305,33 @@ export default function DashboardPage() {
               <div className="max-w-7xl mx-auto px-6 py-8">
                 {/* Tabs */}
                       <div className="flex gap-1 mb-8 bg-gray-100 rounded-lg p-1 w-fit overflow-x-auto">
-                        {(['search', 'chats', 'attachments', 'summaries', 'contacts', 'commitments', 'analytics', 'settings'] as const).map((tab) => (
+                        {([
+                          {id: 'search', label: 'Search', icon: '🔍'},
+                          {id: 'assistant', label: 'AI Assistant', icon: '🤖'},
+                          {id: 'chats', label: 'Chats', icon: '💬'},
+                          {id: 'attachments', label: 'Files', icon: '📎'},
+                          {id: 'summaries', label: 'Summaries', icon: '📝'},
+                          {id: 'contacts', label: 'Contacts', icon: '👥'},
+                          {id: 'labels', label: 'Labels', icon: '🏷️'},
+                          {id: 'commitments', label: 'Tasks', icon: '✅'},
+                          {id: 'reminders', label: 'Reminders', icon: '⏰'},
+                          {id: 'templates', label: 'Templates', icon: '📋'},
+                          {id: 'sentiment', label: 'Mood', icon: '😊'},
+                          {id: 'analytics', label: 'Analytics', icon: '📊'},
+                          {id: 'reports', label: 'Reports', icon: '📄'},
+                          {id: 'settings', label: 'Settings', icon: '⚙️'},
+                        ] as const).map((tab) => (
                       <button
-                                      key={tab}
-                                      onClick={() => setActiveTab(tab)}
-                                      className={`px-4 py-2 rounded-md text-sm font-medium capitalize transition-colors whitespace-nowrap ${
-                                                        activeTab === tab
+                                      key={tab.id}
+                                      onClick={() => setActiveTab(tab.id as TabType)}
+                                      className={`px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+                                                        activeTab === tab.id
                                                           ? 'bg-white text-gray-900 shadow-sm'
                                                           : 'text-gray-500 hover:text-gray-700'
                                       }`}
                                     >
-                        {tab}
+                        <span className="text-xs">{tab.icon}</span>
+                        {tab.label}
                       </button>
                     ))}
                       </div>
@@ -474,6 +544,36 @@ export default function DashboardPage() {
                 {/* Settings Tab */}
                 {activeTab === 'settings' && (
                     <SettingsSection />
+                  )}
+
+                {/* AI Assistant Tab */}
+                {activeTab === 'assistant' && (
+                    <AssistantSection />
+                  )}
+
+                {/* Sentiment Tab */}
+                {activeTab === 'sentiment' && (
+                    <SentimentSection />
+                  )}
+
+                {/* Templates Tab */}
+                {activeTab === 'templates' && (
+                    <TemplatesSection />
+                  )}
+
+                {/* Reminders Tab */}
+                {activeTab === 'reminders' && (
+                    <RemindersSection />
+                  )}
+
+                {/* Labels Tab */}
+                {activeTab === 'labels' && (
+                    <LabelsSection />
+                  )}
+
+                {/* Reports Tab */}
+                {activeTab === 'reports' && (
+                    <ReportsSection />
                   )}
               </div>
         </div>
@@ -1263,7 +1363,7 @@ function AnalyticsSection() {
 
 // --- Settings Section Component ---
 function SettingsSection() {
-  const [settings, setSettings] = useState<Settings | null>(null);
+  const [settings, setSettings] = useState<SettingsData | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [newZone, setNewZone] = useState('');
@@ -1298,7 +1398,7 @@ function SettingsSection() {
     setLoading(false);
   }
 
-  async function saveSettings(updates: Partial<Settings>) {
+  async function saveSettings(updates: Partial<SettingsData>) {
     if (!settings) return;
     setSaving(true);
     try {
@@ -1362,7 +1462,7 @@ function SettingsSection() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `chatvault-export-${new Date().toISOString()}.json`;
+      a.download = `rememora-export-${new Date().toISOString()}.json`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -1601,4 +1701,835 @@ function SettingsSection() {
       </div>
     </div>
   );
+}
+
+// ============================================================
+// AI Assistant Section
+// ============================================================
+function AssistantSection() {
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [input, setInput] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [sources, setSources] = useState<any[]>([]);
+
+    async function sendMessage(e: React.FormEvent) {
+        e.preventDefault();
+        if (!input.trim() || loading) return;
+
+        const userMsg: ChatMessage = { role: 'user', content: input };
+        const updated = [...messages, userMsg];
+        setMessages(updated);
+        setInput('');
+        setLoading(true);
+        setSources([]);
+
+        try {
+            const session = await supabase.auth.getSession();
+            const response = await fetch('/api/chat-assistant', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.data.session?.access_token}`,
+                },
+                body: JSON.stringify({ messages: updated }),
+            });
+            const data = await response.json();
+            setMessages([...updated, { role: 'assistant', content: data.reply || 'Sorry, I could not generate a response.' }]);
+            setSources(data.sources || []);
+        } catch (err) {
+            setMessages([...updated, { role: 'assistant', content: 'An error occurred. Please try again.' }]);
+        }
+        setLoading(false);
+    }
+
+    return (
+        <div className="flex flex-col h-[calc(100vh-220px)]">
+            <div className="mb-4">
+                <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                        <Brain className="w-5 h-5 text-purple-600" />
+                    </div>
+                    <div>
+                        <h2 className="text-lg font-bold text-gray-900">AI Assistant</h2>
+                        <p className="text-sm text-gray-500">Chat with your WhatsApp data — ask anything about your conversations</p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Chat Messages */}
+            <div className="flex-1 overflow-y-auto space-y-4 mb-4 bg-gray-50 rounded-xl p-4">
+                {messages.length === 0 && (
+                    <div className="text-center py-16 text-gray-400">
+                        <Bot className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                        <p className="text-lg font-medium mb-2">Start a conversation</p>
+                        <p className="text-sm">Ask me anything about your WhatsApp messages, contacts, or conversations.</p>
+                        <div className="mt-6 flex flex-wrap gap-2 justify-center">
+                            {['What did I talk about with Mom last week?', 'Find all shared links', 'Summarize my group chats'].map((q) => (
+                                <button key={q} onClick={() => setInput(q)} className="px-3 py-1.5 bg-white border border-gray-200 rounded-full text-xs text-gray-600 hover:bg-gray-100">
+                                    {q}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                {messages.map((msg, i) => (
+                    <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[75%] px-4 py-3 rounded-2xl text-sm ${
+                            msg.role === 'user'
+                                ? 'bg-green-600 text-white rounded-br-md'
+                                : 'bg-white border border-gray-200 text-gray-800 rounded-bl-md'
+                        }`}>
+                            {msg.content}
+                        </div>
+                    </div>
+                ))}
+                {loading && (
+                    <div className="flex justify-start">
+                        <div className="bg-white border border-gray-200 px-4 py-3 rounded-2xl rounded-bl-md">
+                            <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Sources */}
+            {sources.length > 0 && (
+                <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
+                    {sources.slice(0, 4).map((s: any, i: number) => (
+                        <div key={i} className="px-3 py-1.5 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-700 whitespace-nowrap flex-shrink-0">
+                            📌 {s.senderName || 'Unknown'} • {s.text?.substring(0, 40)}...
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Input */}
+            <form onSubmit={sendMessage} className="flex gap-3">
+                <input
+                    type="text"
+                    value={input}
+                    onChange={(e: any) => setInput(e.target.value)}
+                    placeholder="Ask about your conversations..."
+                    className="flex-1 px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                />
+                <button
+                    type="submit"
+                    disabled={loading || !input.trim()}
+                    className="px-5 py-3 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+                >
+                    <Send className="w-4 h-4" />
+                </button>
+            </form>
+        </div>
+    );
+}
+
+// ============================================================
+// Sentiment Analysis Section
+// ============================================================
+function SentimentSection() {
+    const [chatId, setChatId] = useState('');
+    const [period, setPeriod] = useState('30d');
+    const [result, setResult] = useState<any>(null);
+    const [loading, setLoading] = useState(false);
+    const [chats, setChats] = useState<any[]>([]);
+
+    useEffect(() => {
+        async function loadChats() {
+            const { data } = await supabase.from('chats').select('id, title').order('last_message_at', { ascending: false });
+            setChats(data || []);
+        }
+        loadChats();
+    }, []);
+
+    async function analyzeSentiment() {
+        if (!chatId) return;
+        setLoading(true);
+        try {
+            const session = await supabase.auth.getSession();
+            const res = await fetch('/api/sentiment/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.data.session?.access_token}` },
+                body: JSON.stringify({ chatId, period }),
+            });
+            const data = await res.json();
+            setResult(data);
+        } catch (err) { console.error(err); }
+        setLoading(false);
+    }
+
+    const sentimentIcon = (s: string) => {
+        if (s === 'positive') return <Smile className="w-5 h-5 text-green-500" />;
+        if (s === 'negative') return <Frown className="w-5 h-5 text-red-500" />;
+        return <Meh className="w-5 h-5 text-yellow-500" />;
+    };
+
+    const sentimentColor = (s: string) => {
+        if (s === 'positive') return 'text-green-600 bg-green-50';
+        if (s === 'negative') return 'text-red-600 bg-red-50';
+        return 'text-yellow-600 bg-yellow-50';
+    };
+
+    return (
+        <div>
+            <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-pink-100 rounded-xl flex items-center justify-center">
+                    <Heart className="w-5 h-5 text-pink-600" />
+                </div>
+                <div>
+                    <h2 className="text-lg font-bold text-gray-900">Mood & Sentiment</h2>
+                    <p className="text-sm text-gray-500">Analyze the emotional tone of your conversations</p>
+                </div>
+            </div>
+
+            <div className="flex gap-3 mb-6">
+                <select value={chatId} onChange={(e: any) => setChatId(e.target.value)} className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500">
+                    <option value="">Select a chat...</option>
+                    {chats.map((c: any) => <option key={c.id} value={c.id}>{c.title}</option>)}
+                </select>
+                <div className="flex bg-gray-100 rounded-xl p-0.5">
+                    {['7d', '30d', '90d'].map((p) => (
+                        <button key={p} onClick={() => setPeriod(p)} className={`px-3 py-2 rounded-lg text-xs font-medium ${period === p ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}>{p}</button>
+                    ))}
+                </div>
+                <button onClick={analyzeSentiment} disabled={loading || !chatId} className="px-5 py-2.5 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 disabled:opacity-50 flex items-center gap-2">
+                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                    Analyze
+                </button>
+            </div>
+
+            {result && (
+                <div className="space-y-6">
+                    {/* Overall Score */}
+                    <div className="grid grid-cols-3 gap-4">
+                        <div className={`p-4 rounded-xl ${sentimentColor(result.overallSentiment)}`}>
+                            <div className="flex items-center gap-2 mb-1">{sentimentIcon(result.overallSentiment)}<span className="font-bold capitalize">{result.overallSentiment}</span></div>
+                            <p className="text-2xl font-bold">{((result.score + 1) * 50).toFixed(0)}%</p>
+                            <p className="text-xs opacity-75">Positivity Score</p>
+                        </div>
+                        <div className="p-4 rounded-xl bg-blue-50 text-blue-600">
+                            <p className="text-sm font-medium mb-1">Topics Analyzed</p>
+                            <p className="text-2xl font-bold">{result.topics?.length || 0}</p>
+                        </div>
+                        <div className="p-4 rounded-xl bg-purple-50 text-purple-600">
+                            <p className="text-sm font-medium mb-1">Timeline Points</p>
+                            <p className="text-2xl font-bold">{result.moodTimeline?.length || 0}</p>
+                        </div>
+                    </div>
+
+                    {/* Mood Timeline */}
+                    {result.moodTimeline && result.moodTimeline.length > 0 && (
+                        <div className="bg-white border border-gray-200 rounded-xl p-4">
+                            <h3 className="font-semibold text-gray-900 mb-3">Mood Timeline</h3>
+                            <div className="flex items-end gap-1 h-32">
+                                {result.moodTimeline.map((t: any, i: number) => {
+                                    const height = ((t.score + 1) / 2) * 100;
+                                    const color = t.sentiment === 'positive' ? 'bg-green-400' : t.sentiment === 'negative' ? 'bg-red-400' : 'bg-yellow-400';
+                                    return (
+                                        <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                                            <div className={`w-full rounded-t-sm ${color}`} style={{ height: `${Math.max(height, 5)}%` }} title={`${t.date}: ${t.sentiment} (${t.score})`} />
+                                            <span className="text-[9px] text-gray-400 rotate-[-45deg]">{t.date?.substring(5)}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Topics */}
+                    {result.topics && result.topics.length > 0 && (
+                        <div className="bg-white border border-gray-200 rounded-xl p-4">
+                            <h3 className="font-semibold text-gray-900 mb-3">Topic Sentiments</h3>
+                            <div className="flex flex-wrap gap-2">
+                                {result.topics.map((t: any, i: number) => (
+                                    <div key={i} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${sentimentColor(t.sentiment)}`}>
+                                        {sentimentIcon(t.sentiment)}
+                                        {t.topic}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Highlights */}
+                    {result.highlights && (
+                        <div className="grid grid-cols-2 gap-4">
+                            {result.highlights.mostPositive && (
+                                <div className="bg-green-50 border border-green-100 rounded-xl p-4">
+                                    <div className="flex items-center gap-2 mb-2"><TrendingUp className="w-4 h-4 text-green-600" /><span className="text-sm font-semibold text-green-700">Most Positive</span></div>
+                                    <p className="text-sm text-green-800">{result.highlights.mostPositive}</p>
+                                </div>
+                            )}
+                            {result.highlights.mostNegative && (
+                                <div className="bg-red-50 border border-red-100 rounded-xl p-4">
+                                    <div className="flex items-center gap-2 mb-2"><TrendingDown className="w-4 h-4 text-red-600" /><span className="text-sm font-semibold text-red-700">Most Negative</span></div>
+                                    <p className="text-sm text-red-800">{result.highlights.mostNegative}</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ============================================================
+// Message Templates Section
+// ============================================================
+function TemplatesSection() {
+    const [templates, setTemplates] = useState<Template[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [showForm, setShowForm] = useState(false);
+    const [newName, setNewName] = useState('');
+    const [newContent, setNewContent] = useState('');
+    const [newCategory, setNewCategory] = useState('');
+    const [copiedId, setCopiedId] = useState<string | null>(null);
+
+    useEffect(() => { loadTemplates(); }, []);
+
+    async function loadTemplates() {
+        setLoading(true);
+        try {
+            const session = await supabase.auth.getSession();
+            const res = await fetch('/api/templates', { headers: { 'Authorization': `Bearer ${session.data.session?.access_token}` } });
+            const data = await res.json();
+            setTemplates(data.templates || []);
+        } catch (err) { console.error(err); }
+        setLoading(false);
+    }
+
+    async function createTemplate() {
+        if (!newName.trim() || !newContent.trim()) return;
+        try {
+            const session = await supabase.auth.getSession();
+            await fetch('/api/templates', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.data.session?.access_token}` },
+                body: JSON.stringify({ name: newName, content: newContent, category: newCategory || 'general' }),
+            });
+            setNewName(''); setNewContent(''); setNewCategory(''); setShowForm(false);
+            loadTemplates();
+        } catch (err) { console.error(err); }
+    }
+
+    async function deleteTemplate(id: string) {
+        try {
+            const session = await supabase.auth.getSession();
+            await fetch('/api/templates', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.data.session?.access_token}` },
+                body: JSON.stringify({ id }),
+            });
+            loadTemplates();
+        } catch (err) { console.error(err); }
+    }
+
+    function copyToClipboard(content: string, id: string) {
+        navigator.clipboard.writeText(content);
+        setCopiedId(id);
+        setTimeout(() => setCopiedId(null), 2000);
+    }
+
+    return (
+        <div>
+            <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
+                        <FileText className="w-5 h-5 text-amber-600" />
+                    </div>
+                    <div>
+                        <h2 className="text-lg font-bold text-gray-900">Message Templates</h2>
+                        <p className="text-sm text-gray-500">Save and reuse your most common messages</p>
+                    </div>
+                </div>
+                <button onClick={() => setShowForm(!showForm)} className="px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 flex items-center gap-2">
+                    <Plus className="w-4 h-4" /> New Template
+                </button>
+            </div>
+
+            {showForm && (
+                <div className="bg-white border border-gray-200 rounded-xl p-5 mb-6">
+                    <div className="space-y-3">
+                        <input value={newName} onChange={(e: any) => setNewName(e.target.value)} placeholder="Template name" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                        <textarea value={newContent} onChange={(e: any) => setNewContent(e.target.value)} placeholder="Template content... use {{name}} for variables" rows={4} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none" />
+                        <div className="flex gap-3">
+                            <input value={newCategory} onChange={(e: any) => setNewCategory(e.target.value)} placeholder="Category (optional)" className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                            <button onClick={createTemplate} className="px-5 py-2.5 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700">Save</button>
+                            <button onClick={() => setShowForm(false)} className="px-5 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {loading ? (
+                <div className="text-center py-12"><Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" /></div>
+            ) : templates.length === 0 ? (
+                <div className="text-center py-16 text-gray-400">
+                    <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p className="font-medium">No templates yet</p>
+                    <p className="text-sm">Create your first template to save time on repetitive messages</p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {templates.map((t) => (
+                        <div key={t.id} className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-shadow">
+                            <div className="flex items-start justify-between mb-2">
+                                <div>
+                                    <h3 className="font-semibold text-gray-900">{t.name}</h3>
+                                    <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full">{t.category || 'general'}</span>
+                                </div>
+                                <div className="flex gap-1">
+                                    <button onClick={() => copyToClipboard(t.content, t.id)} className="p-1.5 hover:bg-gray-100 rounded-lg" title="Copy">
+                                        {copiedId === t.id ? <CheckSquare className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-gray-400" />}
+                                    </button>
+                                    <button onClick={() => deleteTemplate(t.id)} className="p-1.5 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4 text-gray-400 hover:text-red-500" /></button>
+                                </div>
+                            </div>
+                            <p className="text-sm text-gray-600 whitespace-pre-wrap">{t.content}</p>
+                            <div className="flex items-center gap-3 mt-3 text-xs text-gray-400">
+                                <span>Used {t.use_count || 0} times</span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ============================================================
+// Reminders Section
+// ============================================================
+function RemindersSection() {
+    const [reminders, setReminders] = useState<Reminder[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [statusFilter, setStatusFilter] = useState('pending');
+    const [showForm, setShowForm] = useState(false);
+    const [newText, setNewText] = useState('');
+    const [newDueAt, setNewDueAt] = useState('');
+    const [extracting, setExtracting] = useState(false);
+    const [extracted, setExtracted] = useState<any[]>([]);
+    const [chats, setChats] = useState<any[]>([]);
+    const [extractChatId, setExtractChatId] = useState('');
+
+    useEffect(() => {
+        loadReminders();
+        async function loadChats() {
+            const { data } = await supabase.from('chats').select('id, title').order('last_message_at', { ascending: false });
+            setChats(data || []);
+        }
+        loadChats();
+    }, []);
+
+    useEffect(() => { loadReminders(); }, [statusFilter]);
+
+    async function loadReminders() {
+        setLoading(true);
+        try {
+            const session = await supabase.auth.getSession();
+            const res = await fetch(`/api/reminders?status=${statusFilter}`, { headers: { 'Authorization': `Bearer ${session.data.session?.access_token}` } });
+            const data = await res.json();
+            setReminders(data.reminders || []);
+        } catch (err) { console.error(err); }
+        setLoading(false);
+    }
+
+    async function createReminder() {
+        if (!newText.trim() || !newDueAt) return;
+        try {
+            const session = await supabase.auth.getSession();
+            await fetch('/api/reminders', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.data.session?.access_token}` },
+                body: JSON.stringify({ text: newText, dueAt: new Date(newDueAt).toISOString() }),
+            });
+            setNewText(''); setNewDueAt(''); setShowForm(false);
+            loadReminders();
+        } catch (err) { console.error(err); }
+    }
+
+    async function markDone(id: string) {
+        try {
+            const session = await supabase.auth.getSession();
+            await fetch('/api/reminders', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.data.session?.access_token}` },
+                body: JSON.stringify({ id, status: 'done' }),
+            });
+            loadReminders();
+        } catch (err) { console.error(err); }
+    }
+
+    async function extractReminders() {
+        if (!extractChatId) return;
+        setExtracting(true);
+        try {
+            const session = await supabase.auth.getSession();
+            const res = await fetch('/api/reminders/extract', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.data.session?.access_token}` },
+                body: JSON.stringify({ chatId: extractChatId }),
+            });
+            const data = await res.json();
+            setExtracted(data.extracted || []);
+        } catch (err) { console.error(err); }
+        setExtracting(false);
+    }
+
+    return (
+        <div>
+            <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                        <Bell className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                        <h2 className="text-lg font-bold text-gray-900">Reminders</h2>
+                        <p className="text-sm text-gray-500">Track follow-ups and deadlines from your conversations</p>
+                    </div>
+                </div>
+                <button onClick={() => setShowForm(!showForm)} className="px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 flex items-center gap-2">
+                    <Plus className="w-4 h-4" /> New Reminder
+                </button>
+            </div>
+
+            {showForm && (
+                <div className="bg-white border border-gray-200 rounded-xl p-5 mb-6">
+                    <div className="space-y-3">
+                        <input value={newText} onChange={(e: any) => setNewText(e.target.value)} placeholder="What do you need to remember?" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                        <div className="flex gap-3">
+                            <input type="datetime-local" value={newDueAt} onChange={(e: any) => setNewDueAt(e.target.value)} className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                            <button onClick={createReminder} className="px-5 py-2.5 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700">Save</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* AI Extract */}
+            <div className="bg-purple-50 border border-purple-100 rounded-xl p-4 mb-6">
+                <div className="flex items-center gap-2 mb-2"><Brain className="w-4 h-4 text-purple-600" /><span className="text-sm font-semibold text-purple-700">AI Extract Reminders</span></div>
+                <div className="flex gap-3">
+                    <select value={extractChatId} onChange={(e: any) => setExtractChatId(e.target.value)} className="flex-1 px-3 py-2 border border-purple-200 rounded-xl text-sm bg-white">
+                        <option value="">Select a chat to scan...</option>
+                        {chats.map((c: any) => <option key={c.id} value={c.id}>{c.title}</option>)}
+                    </select>
+                    <button onClick={extractReminders} disabled={extracting || !extractChatId} className="px-4 py-2 bg-purple-600 text-white rounded-xl text-sm font-medium hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2">
+                        {extracting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Extract
+                    </button>
+                </div>
+                {extracted.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                        {extracted.map((e: any, i: number) => (
+                            <div key={i} className="bg-white rounded-lg p-3 flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm text-gray-800">{e.text}</p>
+                                    <p className="text-xs text-gray-400">{e.suggestedDueAt ? new Date(e.suggestedDueAt).toLocaleDateString() : 'No date'} • {(e.confidence * 100).toFixed(0)}% confidence</p>
+                                </div>
+                                <button onClick={() => { setNewText(e.text); setNewDueAt(e.suggestedDueAt?.substring(0, 16) || ''); setShowForm(true); }} className="px-3 py-1 bg-green-600 text-white rounded-lg text-xs hover:bg-green-700">Add</button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Filter */}
+            <div className="flex gap-1 bg-gray-100 rounded-xl p-0.5 w-fit mb-6">
+                {['pending', 'overdue', 'done'].map((s) => (
+                    <button key={s} onClick={() => setStatusFilter(s)} className={`px-4 py-2 rounded-lg text-xs font-medium capitalize ${statusFilter === s ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}>{s}</button>
+                ))}
+            </div>
+
+            {loading ? (
+                <div className="text-center py-12"><Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" /></div>
+            ) : reminders.length === 0 ? (
+                <div className="text-center py-16 text-gray-400">
+                    <Bell className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p className="font-medium">No {statusFilter} reminders</p>
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    {reminders.map((r) => (
+                        <div key={r.id} className={`bg-white border rounded-xl p-4 flex items-center justify-between ${r.isOverdue ? 'border-red-200 bg-red-50' : 'border-gray-200'}`}>
+                            <div className="flex items-center gap-3">
+                                {r.isOverdue ? <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" /> : <Clock className="w-5 h-5 text-blue-500 flex-shrink-0" />}
+                                <div>
+                                    <p className={`text-sm font-medium ${r.status === 'done' ? 'line-through text-gray-400' : 'text-gray-900'}`}>{r.text}</p>
+                                    <p className="text-xs text-gray-400">Due: {new Date(r.due_at).toLocaleString()}</p>
+                                </div>
+                            </div>
+                            {r.status !== 'done' && (
+                                <button onClick={() => markDone(r.id)} className="px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-xs font-medium hover:bg-green-200 flex items-center gap-1">
+                                    <CheckSquare className="w-3 h-3" /> Done
+                                </button>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ============================================================
+// Labels Section
+// ============================================================
+function LabelsSection() {
+    const [labels, setLabels] = useState<Label[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [showForm, setShowForm] = useState(false);
+    const [newName, setNewName] = useState('');
+    const [newColor, setNewColor] = useState('#10b981');
+    const [categorizing, setCategorizing] = useState(false);
+    const [suggestions, setSuggestions] = useState<any[]>([]);
+
+    useEffect(() => { loadLabels(); }, []);
+
+    async function loadLabels() {
+        setLoading(true);
+        try {
+            const session = await supabase.auth.getSession();
+            const res = await fetch('/api/labels', { headers: { 'Authorization': `Bearer ${session.data.session?.access_token}` } });
+            const data = await res.json();
+            setLabels(data.labels || []);
+        } catch (err) { console.error(err); }
+        setLoading(false);
+    }
+
+    async function createLabel() {
+        if (!newName.trim()) return;
+        try {
+            const session = await supabase.auth.getSession();
+            await fetch('/api/labels', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.data.session?.access_token}` },
+                body: JSON.stringify({ name: newName, color: newColor }),
+            });
+            setNewName(''); setShowForm(false);
+            loadLabels();
+        } catch (err) { console.error(err); }
+    }
+
+    async function deleteLabel(id: string) {
+        try {
+            const session = await supabase.auth.getSession();
+            await fetch('/api/labels', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.data.session?.access_token}` },
+                body: JSON.stringify({ id }),
+            });
+            loadLabels();
+        } catch (err) { console.error(err); }
+    }
+
+    async function autoCategorize() {
+        setCategorizing(true);
+        try {
+            const session = await supabase.auth.getSession();
+            const res = await fetch('/api/labels/auto-categorize', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.data.session?.access_token}` },
+            });
+            const data = await res.json();
+            setSuggestions(data.suggestions || []);
+        } catch (err) { console.error(err); }
+        setCategorizing(false);
+    }
+
+    const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#ec4899', '#06b6d4', '#6366f1'];
+
+    return (
+        <div>
+            <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
+                        <FolderOpen className="w-5 h-5 text-indigo-600" />
+                    </div>
+                    <div>
+                        <h2 className="text-lg font-bold text-gray-900">Labels & Folders</h2>
+                        <p className="text-sm text-gray-500">Organize your chats into custom categories</p>
+                    </div>
+                </div>
+                <div className="flex gap-2">
+                    <button onClick={autoCategorize} disabled={categorizing} className="px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                        {categorizing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Auto-Categorize
+                    </button>
+                    <button onClick={() => setShowForm(!showForm)} className="px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 flex items-center gap-2">
+                        <Plus className="w-4 h-4" /> New Label
+                    </button>
+                </div>
+            </div>
+
+            {showForm && (
+                <div className="bg-white border border-gray-200 rounded-xl p-5 mb-6">
+                    <div className="space-y-3">
+                        <input value={newName} onChange={(e: any) => setNewName(e.target.value)} placeholder="Label name" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                        <div className="flex items-center gap-3">
+                            <span className="text-sm text-gray-600">Color:</span>
+                            <div className="flex gap-2">
+                                {COLORS.map((c) => (
+                                    <button key={c} onClick={() => setNewColor(c)} className={`w-7 h-7 rounded-full border-2 ${newColor === c ? 'border-gray-900 scale-110' : 'border-transparent'}`} style={{ backgroundColor: c }} />
+                                ))}
+                            </div>
+                        </div>
+                        <div className="flex gap-3">
+                            <button onClick={createLabel} className="px-5 py-2.5 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700">Create</button>
+                            <button onClick={() => setShowForm(false)} className="px-5 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* AI Suggestions */}
+            {suggestions.length > 0 && (
+                <div className="bg-purple-50 border border-purple-100 rounded-xl p-4 mb-6">
+                    <h3 className="text-sm font-semibold text-purple-700 mb-3 flex items-center gap-2"><Brain className="w-4 h-4" /> AI Suggestions</h3>
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {suggestions.map((s: any, i: number) => (
+                            <div key={i} className="bg-white rounded-lg p-3 flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-gray-800">{s.chatTitle}</p>
+                                    <div className="flex gap-1 mt-1">{s.suggestedLabels?.map((l: string, j: number) => (
+                                        <span key={j} className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-xs">{l}</span>
+                                    ))}</div>
+                                </div>
+                                <span className="text-xs text-gray-400">{(s.confidence * 100).toFixed(0)}%</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {loading ? (
+                <div className="text-center py-12"><Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" /></div>
+            ) : labels.length === 0 ? (
+                <div className="text-center py-16 text-gray-400">
+                    <Tag className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p className="font-medium">No labels yet</p>
+                    <p className="text-sm">Create labels to organize your chats, or let AI auto-categorize them</p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {labels.map((l) => (
+                        <div key={l.id} className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-shadow">
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 rounded-full" style={{ backgroundColor: l.color }} />
+                                    <h3 className="font-semibold text-gray-900">{l.name}</h3>
+                                </div>
+                                <button onClick={() => deleteLabel(l.id)} className="p-1.5 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4 text-gray-400 hover:text-red-500" /></button>
+                            </div>
+                            <p className="text-sm text-gray-500">{l.chatCount || l.chat_ids?.length || 0} chats</p>
+                            {l.is_smart && <span className="text-xs px-2 py-0.5 bg-purple-100 text-purple-600 rounded-full mt-2 inline-block">Smart Label</span>}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ============================================================
+// Reports Section
+// ============================================================
+function ReportsSection() {
+    const [reportType, setReportType] = useState<'analytics' | 'chat_summary' | 'contact' | 'full'>('analytics');
+    const [period, setPeriod] = useState('30d');
+    const [loading, setLoading] = useState(false);
+    const [reportHtml, setReportHtml] = useState<string | null>(null);
+    const [chats, setChats] = useState<any[]>([]);
+    const [selectedChat, setSelectedChat] = useState('');
+
+    useEffect(() => {
+        async function loadChats() {
+            const { data } = await supabase.from('chats').select('id, title').order('last_message_at', { ascending: false });
+            setChats(data || []);
+        }
+        loadChats();
+    }, []);
+
+    async function generateReport() {
+        setLoading(true);
+        setReportHtml(null);
+        try {
+            const session = await supabase.auth.getSession();
+            const body: any = { type: reportType, period, format: 'html' };
+            if (reportType === 'chat_summary' && selectedChat) body.chatId = selectedChat;
+            const res = await fetch('/api/reports', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.data.session?.access_token}` },
+                body: JSON.stringify(body),
+            });
+            const data = await res.json();
+            setReportHtml(data.html || '<p>Report generation failed</p>');
+        } catch (err) { console.error(err); }
+        setLoading(false);
+    }
+
+    function printReport() {
+        if (!reportHtml) return;
+        const win = window.open('', '_blank');
+        if (win) { win.document.write(reportHtml); win.document.close(); win.print(); }
+    }
+
+    return (
+        <div>
+            <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center">
+                    <FileBarChart className="w-5 h-5 text-teal-600" />
+                </div>
+                <div>
+                    <h2 className="text-lg font-bold text-gray-900">Reports</h2>
+                    <p className="text-sm text-gray-500">Generate beautiful, printable reports from your data</p>
+                </div>
+            </div>
+
+            <div className="bg-white border border-gray-200 rounded-xl p-5 mb-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                    {[
+                        { id: 'analytics', label: 'Analytics Report', icon: '📊' },
+                        { id: 'chat_summary', label: 'Chat Summary', icon: '💬' },
+                        { id: 'contact', label: 'Contact Report', icon: '👤' },
+                        { id: 'full', label: 'Full Report', icon: '📋' },
+                    ].map((r) => (
+                        <button key={r.id} onClick={() => setReportType(r.id as any)} className={`p-3 rounded-xl text-sm font-medium text-center border transition-colors ${reportType === r.id ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                            <span className="text-lg block mb-1">{r.icon}</span>
+                            {r.label}
+                        </button>
+                    ))}
+                </div>
+
+                <div className="flex gap-3">
+                    <div className="flex bg-gray-100 rounded-xl p-0.5">
+                        {['7d', '30d', '90d'].map((p) => (
+                            <button key={p} onClick={() => setPeriod(p)} className={`px-3 py-2 rounded-lg text-xs font-medium ${period === p ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}>{p}</button>
+                        ))}
+                    </div>
+                    {reportType === 'chat_summary' && (
+                        <select value={selectedChat} onChange={(e: any) => setSelectedChat(e.target.value)} className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white">
+                            <option value="">Select a chat...</option>
+                            {chats.map((c: any) => <option key={c.id} value={c.id}>{c.title}</option>)}
+                        </select>
+                    )}
+                    <button onClick={generateReport} disabled={loading} className="px-5 py-2.5 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 disabled:opacity-50 flex items-center gap-2">
+                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileBarChart className="w-4 h-4" />}
+                        Generate
+                    </button>
+                </div>
+            </div>
+
+            {reportHtml && (
+                <div>
+                    <div className="flex justify-end gap-2 mb-3">
+                        <button onClick={printReport} className="px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                            <Download className="w-4 h-4" /> Print / Save PDF
+                        </button>
+                    </div>
+                    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                        <iframe srcDoc={reportHtml} className="w-full h-[600px] border-0" title="Report Preview" />
+                    </div>
+                </div>
+            )}
+        </div>
+    );
 }

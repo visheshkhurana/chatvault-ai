@@ -45,7 +45,7 @@ export interface RAGResponse {
 
 // --- System Prompt ---
 
-const SYSTEM_PROMPT = `You are ChatVault AI, a search and recall utility for WhatsApp messages and documents.
+const SYSTEM_PROMPT = `You are Rememora, a search and recall utility for WhatsApp messages and documents.
 Your job is to answer questions using ONLY the provided context from the user's WhatsApp conversations.
 
 Rules:

@@ -6,7 +6,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-    title: 'ChatVault AI - WhatsApp Memory Layer',
+    title: 'Rememora - WhatsApp Memory Layer',
     description: 'Search, recall, and summarize your WhatsApp conversations with AI',
 };
 

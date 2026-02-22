@@ -14,7 +14,7 @@ export default function Home() {
                         <div className="w-9 h-9 bg-gradient-to-br from-brand-500 to-brand-700 rounded-xl flex items-center justify-center shadow-lg shadow-brand-500/20">
                             <MessageSquare className="w-5 h-5 text-white" />
                         </div>
-                        <span className="text-lg font-bold text-surface-900 tracking-tight">ChatVault<span className="text-brand-600">.ai</span></span>
+                        <span className="text-lg font-bold text-surface-900 tracking-tight">Rememora</span>
                     </div>
                     <div className="hidden md:flex items-center gap-8 text-sm font-medium text-surface-500">
                         <a href="#features" className="hover:text-surface-900 transition-colors">Features</a>
@@ -55,7 +55,7 @@ export default function Home() {
 
                         {/* Subheadline */}
                         <p className="text-lg md:text-xl text-surface-500 max-w-2xl mx-auto mb-10 leading-relaxed animate-slide-up" style={{ animationDelay: '0.1s' }}>
-                            ChatVault AI turns your WhatsApp into a searchable knowledge base.
+                            Rememora turns your WhatsApp into a searchable knowledge base.
                             Find any message, document, or conversation with the power of AI — instantly.
                         </p>
 
@@ -300,7 +300,7 @@ export default function Home() {
                             <div className="w-8 h-8 bg-gradient-to-br from-brand-500 to-brand-700 rounded-lg flex items-center justify-center">
                                 <MessageSquare className="w-4 h-4 text-white" />
                             </div>
-                            <span className="font-semibold text-surface-900">ChatVault<span className="text-brand-600">.ai</span></span>
+                            <span className="font-semibold text-surface-900">Rememora</span>
                         </div>
                         <p className="text-sm text-surface-400">
                             Your WhatsApp memory, always searchable. Built with privacy first.
