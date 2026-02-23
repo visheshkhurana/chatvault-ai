@@ -142,23 +142,23 @@ export default function AssistantSection({ bridgeStatus, userEmail, userName: us
                                         <div className="text-center py-12 text-gray-400">
                                                                 <div className="w-16 h-16 mx-auto mb-4 bg-green-100 rounded-2xl flex items-center justify-center">
                                                                                             <Sparkles className="w-8 h-8 text-green-600" />
-                                                                </div>div>
+                                                                </div>
                                                                 <p className="text-lg font-semibold text-gray-800 mb-1">
                                                                     {userName ? `Hi ${userName}!` : 'Welcome to Rememora'}
-                                                                </p>p>
+                                                                </p>
                                                                 <p className="text-sm text-gray-500 mb-2">
                                                                                             Ask me anything about your WhatsApp conversations.
-                                                                </p>p>
+                                                                </p>
                                             {/* Connection status */}
                                                                 <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium mb-6 ${
                                                                         isConnected ? 'bg-green-50 text-green-700' : 'bg-yellow-50 text-yellow-700'
                                         }`}>
                                                                     {isConnected ? (
-                                                                            <><Wifi className="w-3 h-3" /> WhatsApp Connected</>>
+                                                                            <><Wifi className="w-3 h-3" /> WhatsApp Connected</>
                                                                         ) : (
-                                                                            <><WifiOff className="w-3 h-3" /> Connect WhatsApp to get started</>>
+                                                                            <><WifiOff className="w-3 h-3" /> Connect WhatsApp to get started</>
                                                                         )}
-                                                                </div>div>
+                                                                </div>
                                         
                                             {/* Suggestion Chips */}
                                                                 <div className="flex flex-wrap gap-2 justify-center max-w-md mx-auto">
@@ -169,10 +169,10 @@ export default function AssistantSection({ bridgeStatus, userEmail, userName: us
                                                                                                                     className="px-3 py-1.5 bg-white border border-gray-200 rounded-full text-xs text-gray-600 hover:bg-green-50 hover:border-green-200 hover:text-green-700 transition-colors"
                                                                                                                 >
                                                                                 {s.icon} {s.text}
-                                                                                </button>button>
+                                                                                </button>
                                                                         ))}
-                                                                </div>div>
-                                        </div>div>
+                                                                </div>
+                                        </div>
                                             )}
                             
                                 {/* Messages */}
@@ -182,14 +182,14 @@ export default function AssistantSection({ bridgeStatus, userEmail, userName: us
                                                                     {msg.role === 'assistant' && msg.responseData?.intent && (
                                                                             <div className="mb-1">
                                                                                                                 <IntentBadge intent={msg.responseData.intent} />
-                                                                                </div>div>
+                                                                                </div>
                                                                                             )}
                                                                                             <div className={`px-4 py-3 rounded-2xl text-sm ${
                                                                             msg.role === 'user'
                                                                                 ? 'bg-green-600 text-white rounded-br-md'
                                                                                 : 'bg-white border border-gray-200 text-gray-800 rounded-bl-md'
                                         }`}>
-                                                                                                                            <div className="whitespace-pre-wrap">{msg.content}</div>div>
+                                                                                                                            <div className="whitespace-pre-wrap">{msg.content}</div>
                                                                                                 {msg.role === 'assistant' && msg.responseData && (
                                                                                 <>
                                                                                     {msg.responseData.type === 'search' && msg.responseData.sources && msg.responseData.sources.length > 0 && (
@@ -201,11 +201,11 @@ export default function AssistantSection({ bridgeStatus, userEmail, userName: us
                                                                                     {msg.responseData.type === 'summary' && msg.responseData.summary && (
                                                                                                                                 <SummaryCard summary={msg.responseData.summary} />
                                                                                                                             )}
-                                                                                    </>>
+                                                                                    </>
                                                                             )}
-                                                                                                </div>div>
-                                                                </div>div>
-                                        </div>div>
+                                                                                                </div>
+                                                                </div>
+                                        </div>
                                     ))}
                             
                                 {/* Typing indicator */}
@@ -213,15 +213,15 @@ export default function AssistantSection({ bridgeStatus, userEmail, userName: us
                                         <div className="flex justify-start">
                                                                 <div className="bg-white border border-gray-200 px-4 py-3 rounded-2xl rounded-bl-md flex items-center gap-2">
                                                                                             <span className="flex gap-1">
-                                                                                                                            <span className="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>span>
-                                                                                                                            <span className="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>span>
-                                                                                                                            <span className="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>span>
-                                                                                                </span>span>
-                                                                </div>div>
-                                        </div>div>
+                                                                                                                            <span className="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                                                                                                                            <span className="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                                                                                                                            <span className="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                                                                                                </span>
+                                                                </div>
+                                        </div>
                                             )}
                                             <div ref={messagesEndRef} />
-                            </div>div>
+                            </div>
                 
                     {/* Quick actions row when conversation is active */}
                     {messages.length > 0 && suggestions.length > 0 && (
@@ -233,9 +233,9 @@ export default function AssistantSection({ bridgeStatus, userEmail, userName: us
                                                                                                 className="px-2.5 py-1 bg-white border border-gray-200 rounded-full text-[11px] text-gray-500 hover:bg-green-50 hover:border-green-200 hover:text-green-700 whitespace-nowrap flex-shrink-0 transition-colors"
                                                                                             >
                                                                     {s.icon} {s.text}
-                                                                </button>button>
+                                                                </button>
                                                             ))}
-                                    </div>div>
+                                    </div>
                             )}
                 
                     {/* Input */}
@@ -255,8 +255,8 @@ export default function AssistantSection({ bridgeStatus, userEmail, userName: us
                                                                     className="px-5 py-3 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 disabled:opacity-50 flex items-center gap-2 transition-colors"
                                                                 >
                                                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                                            </button>button>
-                            </form>form>
-                </div>div>
-            );
-}</></></></div>
+                                            </button>
+                            </form>
+                                </div>
+                                  );
+                                  }
