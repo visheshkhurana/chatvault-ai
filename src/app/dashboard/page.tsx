@@ -27,7 +27,7 @@ import LabelsSection from '@/components/dashboard/LabelsSection';
 import ReportsSection from '@/components/dashboard/ReportsSection';
 
 // ============================================================
-// Rememora â Dashboard
+// Rememora — Dashboard
 // ============================================================
 
 interface BridgeStatus {
@@ -206,7 +206,7 @@ export default function DashboardPage() {
           
               {/* Main layout: Sidebar + Content */}
                 <div className="flex flex-1 overflow-hidden">
-                    {/* Sidebar â desktop only */}
+                    {/* Sidebar — desktop only */}
                         <DashboardSidebar
                                       activeTab={activeTab}
                                       onTabChange={handleTabChange}
@@ -226,4 +226,4 @@ export default function DashboardPage() {
                 <MobileTabBar activeTab={activeTab} onTabChange={handleTabChange} />
           </div>
         );
-}</div>
+}
