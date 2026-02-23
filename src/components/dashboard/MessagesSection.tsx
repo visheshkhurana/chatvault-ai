@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { supabase } from '@/lib/supabase';
 import {
   MessageSquare, Search, Paperclip, FileText, Image,
   Film, ChevronRight, ArrowLeft, Download, Clock,
@@ -81,8 +81,7 @@ function fileSize(bytes: number): string {
 }
 
 export default function MessagesSection() {
-  const supabase = createClientComponentClient();
-  const [subTab, setSubTab] = useState<SubTab>('conversations');
+    const [subTab, setSubTab] = useState<SubTab>('conversations');
   const [chats, setChats] = useState<Chat[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
