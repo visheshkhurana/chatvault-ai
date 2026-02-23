@@ -31,7 +31,7 @@ export default function LabelsSection() {
             const session = await supabase.auth.getSession();
             const res = await fetch('/api/labels', { headers: { 'Authorization': `Bearer ${session.data.session?.access_token}` } });
             const data = await res.json();
-            setLabels(data.labels || []);
+            setLabels(Array.isArray(data) ? data : (data.labels || []));
         } catch (err) { console.error(err); }
         setLoading(false);
     }
