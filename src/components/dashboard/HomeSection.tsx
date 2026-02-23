@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { supabase } from '@/lib/supabase';
 import {
   AlertCircle, CheckCircle, MessageSquare, Paperclip,
   Users, Clock, ArrowRight, Sparkles, Calendar,
@@ -54,8 +54,7 @@ function getGreeting(): string {
 }
 
 export default function HomeSection({ onNavigate }: HomeProps) {
-  const supabase = createClientComponentClient();
-  const [stats, setStats] = useState<Stats>({
+    const [stats, setStats] = useState<Stats>({
     totalChats: 0, totalMessages: 0, totalContacts: 0,
     totalFiles: 0, overdueReminders: 0, pendingCommitments: 0,
     upcomingReminders: 0
