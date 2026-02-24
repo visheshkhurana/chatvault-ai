@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, getInternalUserId } from '@/lib/supabase';
 import { CheckCircle, Clock, AlertTriangle, Filter } from 'lucide-react';
 
 interface ActionItem {
@@ -39,9 +39,9 @@ export default function ActionsSection() {
 
   async function loadActions() {
     setLoading(true);
-    const { data: session } = await supabase.auth.getSession();
-    if (!session?.session?.user) return;
-    const userId = session.session.user.id;
+    const userId = await getInternalUserId();
+    if (!userId) return;
+    
 
     const [remRes, comRes] = await Promise.all([
       supabase.from('reminders').select('*').eq('user_id', userId).order('remind_at', { ascending: true }),
