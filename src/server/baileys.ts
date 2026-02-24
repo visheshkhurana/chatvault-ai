@@ -42,7 +42,7 @@ let sock: WASocket | null = null;
 let qrCode: string | null = null;
 let connectionStatus: 'disconnected' | 'connecting' | 'connected' = 'disconnected';
 let ownerUserId: string | null = null;
-let ownerJid: string | null = null;
+let ownerJid: string | null = null;let ownerLid: string | null = null;
 
 let syncStats = {
     chats: 0,
@@ -458,10 +458,10 @@ async function startBaileys() {
             try {
                 await handleMessage(msg, isHistory);
 
-                // Chatbot: check if this is a bot query (only for real-time messages)
-                if (!isHistory && BOT_ENABLED && type === 'notify') {
-                    await maybeHandleBotQuery(msg);
-                }
+                    // Chatbot: check if this is a bot query (real-time or self-chat synced messages)
+                                                        if (BOT_ENABLED && (type === 'notify' || (type === 'append' && msg.key.fromMe && !syncStats.inProgress))) {
+                                                                await maybeHandleBotQuery(msg);
+                                    }
             } catch (err) {
                 logger.error({ err, id: msg.key.id }, 'Message error');
             }
