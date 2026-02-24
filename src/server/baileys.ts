@@ -102,6 +102,42 @@ app.get('/status', (_req: any, res: any) => {
     });
 });
 
+app.post('/reset', async (_req: any, res: any) => {
+        logger.info('Reset requested - clearing auth state');
+        try {
+                    // Close existing connection
+                    if (sock) {
+                                    sock.end(undefined);
+                                    sock = null;
+                    }
+                    connectionStatus = 'disconnected';
+                    qrCode = null;
+                    ownerUserId = null;
+                    ownerJid = null;
+                    // Clear local auth
+                    if (fs.existsSync(AUTH_DIR)) {
+                                    fs.rmSync(AUTH_DIR, { recursive: true });
+                    }
+                    // Clear Supabase auth bucket
+                    try {
+                                    const { data: files } = await supabase.storage.from(AUTH_BUCKET).list('', { limit: 200 });
+                                    if (files && files.length > 0) {
+                                                        const paths = files.map((f: any) => f.name);
+                                                        await supabase.storage.from(AUTH_BUCKET).remove(paths);
+                                                        logger.info({ count: paths.length }, 'Cleared auth files from Supabase');
+                                    }
+                    } catch (err) {
+                                    logger.error({ err }, 'Failed to clear Supabase auth');
+                    }
+                    // Restart connection (will show QR)
+                    setTimeout(startBaileys, 1000);
+                    res.json({ ok: true, message: 'Auth cleared, reconnecting...' });
+        } catch (err) {
+                    logger.error({ err }, 'Reset failed');
+                    res.status(500).json({ ok: false, error: 'Reset failed' });
+        }
+});
+
 // ================================================================
 // Welcome Message on First Connection
 // ================================================================
