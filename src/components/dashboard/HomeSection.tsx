@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, getInternalUserId } from '@/lib/supabase';
 import {
   AlertCircle, CheckCircle, MessageSquare, Paperclip,
   Users, Clock, ArrowRight, Sparkles, Calendar,
@@ -69,10 +69,10 @@ export default function HomeSection({ onNavigate }: HomeProps) {
 
   async function loadDashboard() {
     setLoading(true);
-    const { data: session } = await supabase.auth.getSession();
-    if (!session?.session?.user) return;
-    const userId = session.session.user.id;
-    setUserName(session.session.user.user_metadata?.full_name || session.session.user.email?.split('@')[0] || '');
+    const userId = await getInternalUserId();
+    if (!userId) return;
+    
+    const { data: { session: s } } = await supabase.auth.getSession(); setUserName(s?.user?.user_metadata?.full_name || s?.user?.email?.split('@')[0] || '');
 
     const now = new Date().toISOString();
 
