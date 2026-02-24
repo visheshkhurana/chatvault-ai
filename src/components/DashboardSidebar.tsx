@@ -2,17 +2,8 @@
 
 import React from 'react';
 import {
-  Home,
-  MessageCircle,
-  ListChecks,
-  Users,
-  Sparkles,
-  Settings,
-  ChevronLeft,
-  ChevronRight,
-  Command,
-  Wifi,
-  WifiOff,
+  Home, MessageCircle, ListChecks, Users, Sparkles, Settings,
+  ChevronLeft, ChevronRight, Command, Wifi, WifiOff,
 } from 'lucide-react';
 import { TabType } from '@/types/dashboard';
 
@@ -48,19 +39,10 @@ const navItems: NavItem[] = [
 ];
 
 const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
-  activeTab,
-  onTabChange,
-  collapsed,
-  onToggleCollapse,
-  userName,
-  bridgeStatus,
+  activeTab, onTabChange, collapsed, onToggleCollapse, userName, bridgeStatus,
 }) => {
   return (
-    <aside
-      className={`hidden md:flex flex-col flex-shrink-0 bg-slate-950 border-r border-slate-800/50 transition-all duration-300 ease-in-out relative ${
-        collapsed ? 'w-[72px]' : 'w-[240px]'
-      }`}
-    >
+    <aside className={'hidden md:flex flex-col flex-shrink-0 bg-slate-950 border-r border-slate-800/50 transition-all duration-300 ease-in-out relative ' + (collapsed ? 'w-[72px]' : 'w-[240px]')}>
       {/* Search / Cmd+K */}
       {!collapsed && (
         <div className="px-4 pt-4 pb-2">
@@ -70,7 +52,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
           >
             <Command className="w-4 h-4" />
             <span>Search anything...</span>
-            <kbd className="ml-auto text-[10px] bg-slate-800 px-1.5 py-0.5 rounded font-mono">⌘K</kbd>
+            <kbd className="ml-auto text-[10px] bg-slate-800 px-1.5 py-0.5 rounded font-mono">\u2318K</kbd>
           </button>
         </div>
       )}
@@ -91,16 +73,10 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
             <button
               key={item.tab}
               onClick={() => onTabChange(item.tab)}
-              className={`w-full flex items-center gap-3 rounded-lg transition-all duration-200 ${
-                collapsed ? 'px-3 py-3 justify-center' : 'px-3 py-2.5'
-              } ${
-                isActive
-                  ? 'bg-emerald-500/10 text-emerald-400 border-l-2 border-emerald-400 -ml-px'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
-              }`}
+              className={'w-full flex items-center gap-3 rounded-lg transition-all duration-200 ' + (collapsed ? 'px-3 py-3 justify-center ' : 'px-3 py-2.5 ') + (isActive ? 'bg-emerald-500/10 text-emerald-400 border-l-2 border-emerald-400 -ml-px' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900')}
               title={collapsed ? item.label : undefined}
             >
-              <item.icon className={`flex-shrink-0 ${isActive ? 'w-5 h-5' : 'w-5 h-5'}`} />
+              <item.icon className="flex-shrink-0 w-5 h-5" />
               {!collapsed && (
                 <div className="flex flex-col items-start min-w-0">
                   <span className="text-[13px] font-semibold leading-tight">{item.label}</span>
@@ -119,35 +95,32 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
         })}
       </nav>
 
-      {/* Bridge status */}
-      {!collapsed && bridgeStatus && (
+      {/* Bridge status - clickable, navigates to settings */}
+      {!collapsed && (
         <div className="px-4 pb-2">
-          <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs ${
-            bridgeStatus.connected
-              ? 'bg-emerald-500/10 text-emerald-400'
-              : 'bg-slate-900 text-slate-500'
-          }`}>
-            {bridgeStatus.connected ? (
+          <button
+            onClick={() => onTabChange('settings')}
+            className={'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs cursor-pointer transition-colors hover:opacity-80 ' + (bridgeStatus?.connected ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-900 text-slate-500 hover:text-slate-300 hover:bg-slate-800')}
+            title={bridgeStatus?.connected ? 'WhatsApp connected' : 'Click to connect WhatsApp'}
+          >
+            {bridgeStatus?.connected ? (
               <Wifi className="w-3.5 h-3.5" />
             ) : (
               <WifiOff className="w-3.5 h-3.5" />
             )}
-            <span>{bridgeStatus.connected ? 'WhatsApp connected' : 'WhatsApp disconnected'}</span>
-          </div>
+            <span>{bridgeStatus?.connected ? 'WhatsApp connected' : 'WhatsApp disconnected'}</span>
+            {!bridgeStatus?.connected && (
+              <span className="ml-auto text-[10px] bg-emerald-600 text-white px-1.5 py-0.5 rounded">Connect</span>
+            )}
+          </button>
         </div>
       )}
 
       {/* Settings */}
-      <div className={`px-3 pb-4 ${collapsed ? '' : ''}`}>
+      <div className={collapsed ? 'px-3 pb-4' : 'px-3 pb-4'}>
         <button
           onClick={() => onTabChange('settings')}
-          className={`w-full flex items-center gap-3 rounded-lg transition-colors ${
-            collapsed ? 'px-3 py-3 justify-center' : 'px-3 py-2.5'
-          } ${
-            activeTab === 'settings'
-              ? 'bg-emerald-500/10 text-emerald-400'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
-          }`}
+          className={'w-full flex items-center gap-3 rounded-lg transition-colors ' + (collapsed ? 'px-3 py-3 justify-center ' : 'px-3 py-2.5 ') + (activeTab === 'settings' ? 'bg-emerald-500/10 text-emerald-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900')}
           title={collapsed ? 'Settings' : undefined}
         >
           <Settings className="w-5 h-5" />
