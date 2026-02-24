@@ -128,3 +128,30 @@ export interface SearchResult {
     chat_id: string;
     metadata: any;
 }
+
+// ================================================================
+// Internal User ID Resolution
+// ================================================================
+// The backend (baileys.ts) stores data using the internal users.id,
+// but the frontend auth session provides auth.uid(). This helper
+// resolves the internal user ID for use in client-side queries.
+
+let cachedInternalUserId: string | null = null;
+
+export async function getInternalUserId(): Promise<string | null> {
+        if (cachedInternalUserId) return cachedInternalUserId;
+
+        const { data: session } = await supabase.auth.getSession();
+        if (!session?.session?.user) return null;
+
+        const { data: user } = await supabase
+            .from('users')
+            .select('id')
+            .eq('auth_id', session.session.user.id)
+            .single();
+
+        if (user?.id) {
+                    cachedInternalUserId = user.id;
+        }
+        return user?.id || null;
+}
