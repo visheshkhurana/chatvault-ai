@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, getInternalUserId } from '@/lib/supabase';
 import { Users, Search, MessageSquare, Phone } from 'lucide-react';
 
 interface Contact {
@@ -45,12 +45,12 @@ export default function PeopleSection() {
 
   async function loadContacts() {
     setLoading(true);
-    const { data: session } = await supabase.auth.getSession();
-    if (!session?.session?.user) return;
+    const userId = await getInternalUserId();
+    if (!userId) return;
     const { data } = await supabase
       .from('contacts')
       .select('*')
-      .eq('user_id', session.session.user.id)
+      .eq('user_id', userId)
       .order('name', { ascending: true });
     setContacts(data || []);
     setLoading(false);
