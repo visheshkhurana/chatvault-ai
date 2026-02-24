@@ -142,6 +142,33 @@ app.post('/reset', async (_req: any, res: any) => {
 // Welcome Message on First Connection
 // ================================================================
 
+app.use(express.json());
+
+app.post('/send-welcome', async (_req: any, res: any) => {
+        logger.info('Force send-welcome requested');
+        if (!sock || connectionStatus !== 'connected') {
+                    return res.status(400).json({ ok: false, error: 'WhatsApp not connected' });
+        }
+        try {
+                    const userId = await ensureOwnerUser();
+                    if (!userId || !ownerJid) {
+                                    return res.status(400).json({ ok: false, error: 'No owner user found' });
+                    }
+                    // Reset welcome_sent flag so sendWelcomeMessage will actually send
+                    await supabase
+                        .from('users')
+                        .update({ metadata: {} })
+                        .eq('id', userId);
+                    logger.info('Cleared welcome_sent flag');
+                    // Now send welcome
+                    await sendWelcomeMessage();
+                    res.json({ ok: true, message: 'Welcome message sent!' });
+        } catch (err) {
+                    logger.error({ err }, 'Force send-welcome failed');
+                    res.status(500).json({ ok: false, error: 'Failed to send welcome message' });
+        }
+});
+
 async function sendWelcomeMessage() {
     if (!sock || !BOT_ENABLED) return;
 
@@ -193,7 +220,7 @@ async function sendWelcomeMessage() {
             : ownerJid;
 
         await sock.sendMessage(selfJid, { text: welcomeText });
-        logger.info('Welcome message sent to self-chat');
+        logger.info({ selfJid, ownerJid }, 'Welcome message sent to self-chat');
 
         // Mark welcome as sent so we don't send again on reconnect
         await supabase
