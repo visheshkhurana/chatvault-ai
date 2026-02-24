@@ -129,39 +129,30 @@ async function sendWelcomeMessage() {
         // Small delay to let connection stabilize
         await new Promise(r => setTimeout(r, 3000));
 
-        const welcomeText = `👋 *Welcome to Rememora!*
-
-Your WhatsApp memory layer is now active. I'm your AI assistant that helps you find, organize, and recall anything from your WhatsApp conversations.
-
-💬 *What I can do:*
-
-🔍 *Find anything* — Search messages, files & documents
-   • "Find my medical report from March"
-   • "What PDF did Neha send last week?"
-
-📝 *Summarize conversations* — Get quick recaps
-   • "Summarize my chat with the bankers"
-   • "Recap my conversation with Mom"
-
-✅ *Track commitments* — Never miss a promise
-   • "Show my pending commitments"
-   • "What did I promise to do?"
-
-📄 *Locate documents* — Find shared files instantly
-   • "Find the invoice from OROS"
-   • "Show documents from last month"
-
-💡 *How to use me:*
-• *Self-chat:* Message yourself — every message is a query
-• *Any chat:* Prefix with *!* or *@rememora*
-   Example: `!find my passport copy`
-
-🚀 I'm now syncing your WhatsApp history in the background. The more messages I index, the smarter I get!
-
-Type *help* anytime to see this again.`;
+        const welcomeText = '\ud83d\udc4b *Welcome to Rememora!*\n\n' +
+            'Your WhatsApp memory layer is now active. I\'m your AI assistant that helps you find, organize, and recall anything from your WhatsApp conversations.\n\n' +
+            '\ud83d\udcac *What I can do:*\n\n' +
+            '\ud83d\udd0d *Find anything* \u2014 Search messages, files & documents\n' +
+            '   \u2022 "Find my medical report from March"\n' +
+            '   \u2022 "What PDF did Neha send last week?"\n\n' +
+            '\ud83d\udcdd *Summarize conversations* \u2014 Get quick recaps\n' +
+            '   \u2022 "Summarize my chat with the bankers"\n' +
+            '   \u2022 "Recap my conversation with Mom"\n\n' +
+            '\u2705 *Track commitments* \u2014 Never miss a promise\n' +
+            '   \u2022 "Show my pending commitments"\n' +
+            '   \u2022 "What did I promise to do?"\n\n' +
+            '\ud83d\udcc4 *Locate documents* \u2014 Find shared files instantly\n' +
+            '   \u2022 "Find the invoice from OROS"\n' +
+            '   \u2022 "Show documents from last month"\n\n' +
+            '\ud83d\udca1 *How to use me:*\n' +
+            '\u2022 *Self-chat:* Message yourself \u2014 every message is a query\n' +
+            '\u2022 *Any chat:* Prefix with *!* or *@rememora*\n' +
+            '   Example: !find my passport copy\n\n' +
+            '\ud83d\ude80 I\'m now syncing your WhatsApp history in the background. The more messages I index, the smarter I get!\n\n' +
+            'Type *help* anytime to see this again.';
 
         // Send to self-chat (user's own JID)
-        const selfJid = ownerJid.includes(':') 
+        const selfJid = ownerJid.includes(':')
             ? ownerJid.split(':')[0] + '@s.whatsapp.net'
             : ownerJid;
 
@@ -423,7 +414,6 @@ async function maybeHandleBotQuery(msg: proto.IWebMessageInfo) {
     const remoteJid = msg.key.remoteJid || '';
     if (remoteJid === 'status@broadcast') return;
 
-    // Extract text content
     const contentType = getContentType(msg.message);
     const { text } = extractContent(msg, contentType);
     if (!text || text.length < 2) return;
@@ -432,21 +422,15 @@ async function maybeHandleBotQuery(msg: proto.IWebMessageInfo) {
     const isSelfChat = remoteJid === ownerJid || remoteJid?.split('@')[0]?.split(':')[0] === sock?.user?.id?.split(':')[0]?.split('@')[0];
     const textLower = text.toLowerCase().trim();
 
-    // Determine if this is a bot query:
-    // 1. Self-chat (user messaging themselves) — all messages are bot queries
-    // 2. Message starts with a trigger prefix (!, /rememora, @rememora, rememora)
     let isBotQuery = false;
     let queryText = text;
 
     if (isFromMe && isSelfChat) {
-        // Self-chat: treat all outgoing messages as bot queries
         isBotQuery = true;
     } else if (isFromMe) {
-        // Check for trigger prefixes in any chat
         for (const trigger of BOT_TRIGGERS) {
             if (textLower.startsWith(trigger.toLowerCase())) {
                 isBotQuery = true;
-                // Strip the trigger prefix from the query
                 queryText = text.substring(trigger.length).trim();
                 if (!queryText) queryText = 'help';
                 break;
@@ -460,13 +444,9 @@ async function maybeHandleBotQuery(msg: proto.IWebMessageInfo) {
     syncStats.botQueries++;
 
     try {
-        // Send typing indicator
         await sock.sendPresenceUpdate('composing', remoteJid);
-
         const userId = await ensureOwnerUser();
         const response = await processBotQuery(queryText, userId);
-
-        // Send response back to the same chat
         await sock.sendMessage(remoteJid, { text: response });
         syncStats.botResponses++;
         logger.info({ responseLength: response.length }, 'Bot response sent');
@@ -476,18 +456,14 @@ async function maybeHandleBotQuery(msg: proto.IWebMessageInfo) {
             await sock.sendMessage(remoteJid, { text: '\u26a0\ufe0f Sorry, I encountered an error processing your request. Please try again.' });
         } catch {}
     } finally {
-        try {
-            await sock.sendPresenceUpdate('available', remoteJid);
-        } catch {}
+        try { await sock.sendPresenceUpdate('available', remoteJid); } catch {}
     }
 }
 
 async function processBotQuery(query: string, userId: string): Promise<string> {
-    // Step 1: Classify intent using LLM
     const intent = await classifyBotIntent(query);
     logger.info({ intent: intent.type, query: query.substring(0, 60) }, 'Intent classified');
 
-    // Step 2: Route by intent
     switch (intent.type) {
         case 'casual':
             return handleCasualBot(query);
@@ -524,22 +500,16 @@ const CASUAL_PATTERNS = [
 async function classifyBotIntent(message: string): Promise<BotIntent> {
     const lower = message.toLowerCase().trim();
 
-    // Fast path: casual
     if (lower.length <= 3 || CASUAL_PATTERNS.some(p => p.test(lower))) {
         return { type: 'casual', searchQuery: '' };
     }
-
-    // Fast path: command
     if (lower === 'help' || lower === 'status' || lower.startsWith('/')) {
         return { type: 'command', searchQuery: '' };
     }
-
-    // Fast path: commitment keywords
     if (/\b(commitment|promise|deadline|pending|owe|committed)\b/i.test(lower)) {
         return { type: 'commitment', searchQuery: message };
     }
 
-    // Use LLM for nuanced classification
     if (!OPENROUTER_API_KEY) {
         return { type: 'question', searchQuery: message };
     }
@@ -547,20 +517,11 @@ async function classifyBotIntent(message: string): Promise<BotIntent> {
     try {
         const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
             method: 'POST',
-            headers: {
-                'Authorization': 'Bearer ' + OPENROUTER_API_KEY,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': 'Bearer ' + OPENROUTER_API_KEY, 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 model: LLM_MODEL,
                 messages: [
-                    {
-                        role: 'system',
-                        content: `Classify this WhatsApp message into one intent. Reply with strict JSON only.
-Intents: retrieval (find documents/files/messages), summarize (summarize a conversation), commitment (show promises/deadlines), question (general question about their data), casual (greeting/thanks), command (help/status)
-Extract: contactRef (person name if mentioned), documentType (type of document if mentioned), dateRef (date/time reference), searchQuery (optimized search query)
-JSON format: {"type":"...","contactRef":"...","documentType":"...","dateRef":"...","searchQuery":"..."}`
-                    },
+                    { role: 'system', content: 'Classify this WhatsApp message into one intent. Reply with strict JSON only. Intents: retrieval (find documents/files/messages), summarize (summarize a conversation), commitment (show promises/deadlines), question (general question about their data), casual (greeting/thanks), command (help/status). Extract: contactRef (person name if mentioned), documentType (type of document if mentioned), dateRef (date/time reference), searchQuery (optimized search query). JSON format: {"type":"...","contactRef":"...","documentType":"...","dateRef":"...","searchQuery":"..."}' },
                     { role: 'user', content: message }
                 ],
                 temperature: 0.1,
@@ -568,7 +529,6 @@ JSON format: {"type":"...","contactRef":"...","documentType":"...","dateRef":"..
                 response_format: { type: 'json_object' },
             }),
         });
-
         const data = await res.json();
         const content = data?.choices?.[0]?.message?.content;
         if (content) {
@@ -626,12 +586,8 @@ async function handleCommitmentsBot(userId: string): Promise<string> {
 
 async function handleSummarizeBot(query: string, userId: string, intent: BotIntent): Promise<string> {
     const contactRef = intent.contactRef || '';
-    if (!contactRef) {
-        // Fall back to search
-        return handleSearchBot(query, userId, intent);
-    }
+    if (!contactRef) return handleSearchBot(query, userId, intent);
 
-    // Find chat matching the contact reference
     const { data: chats } = await supabase
         .from('chats')
         .select('id, title')
@@ -657,17 +613,13 @@ async function handleSummarizeBot(query: string, userId: string, intent: BotInte
         return "I found the chat with " + chat.title + " but there are no messages to summarize yet.";
     }
 
-    // Build context and ask LLM to summarize
     const msgContext = messages.reverse().map(m =>
         '[' + new Date(m.timestamp).toLocaleDateString() + '] ' + m.sender_name + ': ' + m.text_content
     ).join('\n');
 
     const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
-        headers: {
-            'Authorization': 'Bearer ' + OPENROUTER_API_KEY,
-            'Content-Type': 'application/json'
-        },
+        headers: { 'Authorization': 'Bearer ' + OPENROUTER_API_KEY, 'Content-Type': 'application/json' },
         body: JSON.stringify({
             model: LLM_MODEL,
             messages: [
@@ -681,30 +633,20 @@ async function handleSummarizeBot(query: string, userId: string, intent: BotInte
 
     const data = await res.json();
     const summary = data?.choices?.[0]?.message?.content;
-
     if (!summary) return "Sorry, I couldn't generate a summary. Please try again.";
-
     return "\ud83d\udcdd *Summary: " + chat.title + "*\n\n" + summary;
 }
 
 async function handleSearchBot(query: string, userId: string, intent: BotIntent): Promise<string> {
     const searchQuery = intent.searchQuery || query;
 
-    // Step 1: Generate embedding for the query
     let embedding: number[] | null = null;
-
     if (OPENROUTER_API_KEY) {
         try {
             const embRes = await fetch('https://openrouter.ai/api/v1/embeddings', {
                 method: 'POST',
-                headers: {
-                    'Authorization': 'Bearer ' + OPENROUTER_API_KEY,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    model: EMBEDDING_MODEL,
-                    input: searchQuery.substring(0, 4000)
-                }),
+                headers: { 'Authorization': 'Bearer ' + OPENROUTER_API_KEY, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model: EMBEDDING_MODEL, input: searchQuery.substring(0, 4000) }),
             });
             const embData = await embRes.json();
             embedding = embData?.data?.[0]?.embedding || null;
@@ -713,11 +655,8 @@ async function handleSearchBot(query: string, userId: string, intent: BotIntent)
         }
     }
 
-    // Step 2: Search - try vector search first, fall back to text search
     let searchResults: any[] = [];
-
     if (embedding) {
-        // Vector similarity search via Supabase RPC
         const { data } = await supabase.rpc('match_embeddings', {
             query_embedding: JSON.stringify(embedding),
             match_count: 8,
@@ -726,7 +665,6 @@ async function handleSearchBot(query: string, userId: string, intent: BotIntent)
         searchResults = data || [];
     }
 
-    // Fall back to text search if vector search returned nothing
     if (searchResults.length === 0) {
         const { data } = await supabase
             .from('messages')
@@ -748,16 +686,13 @@ async function handleSearchBot(query: string, userId: string, intent: BotIntent)
         return "I couldn't find anything matching \"" + query + "\" in your WhatsApp history. Try different keywords or a broader search.";
     }
 
-    // Step 3: Enrich with chat titles
     const chatIds = [...new Set(searchResults.map(r => r.chat_id).filter(Boolean))];
     let chatMap = new Map<string, string>();
-
     if (chatIds.length > 0) {
         const { data: chats } = await supabase.from('chats').select('id, title').in('id', chatIds);
         (chats || []).forEach(c => chatMap.set(c.id, c.title));
     }
 
-    // Step 4: Build context and generate answer with LLM
     const contextParts = searchResults.map((r, i) => {
         const parts = ['[' + (i + 1) + ']', r.chunk_text || ''];
         if (r.metadata?.sender_name) parts.push('From: ' + r.metadata.sender_name);
@@ -773,14 +708,11 @@ async function handleSearchBot(query: string, userId: string, intent: BotIntent)
 
     const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
-        headers: {
-            'Authorization': 'Bearer ' + OPENROUTER_API_KEY,
-            'Content-Type': 'application/json'
-        },
+        headers: { 'Authorization': 'Bearer ' + OPENROUTER_API_KEY, 'Content-Type': 'application/json' },
         body: JSON.stringify({
             model: LLM_MODEL,
             messages: [
-                { role: 'system', content: 'You are Rememora, a WhatsApp AI assistant that helps users find information in their WhatsApp history. Answer based strictly on the provided context. Reference specific messages using [1], [2] etc. Format for WhatsApp: use *bold* for emphasis, bullet points with \u2022. Be concise (under 500 chars). If the context doesn\'t contain enough info, say so clearly.' },
+                { role: 'system', content: 'You are Rememora, a WhatsApp AI assistant that helps users find information in their WhatsApp history. Answer based strictly on the provided context. Reference specific messages using [1], [2] etc. Format for WhatsApp: use *bold* for emphasis, bullet points with \u2022. Be concise (under 500 chars). If the context does not contain enough info, say so clearly.' },
                 { role: 'user', content: 'Context from WhatsApp messages:\n\n' + context.substring(0, 6000) + '\n\n---\n\nUser question: ' + query }
             ],
             temperature: 0.5,
@@ -790,9 +722,7 @@ async function handleSearchBot(query: string, userId: string, intent: BotIntent)
 
     const data = await res.json();
     const answer = data?.choices?.[0]?.message?.content;
-
     if (!answer) return "Sorry, I found some results but couldn't generate an answer. Please try rephrasing your question.";
-
     return answer;
 }
 
@@ -821,7 +751,6 @@ function mapMessageType(contentType: string | undefined): string {
 
 async function handleMessage(msg: proto.IWebMessageInfo, isHistory = false) {
     if (!sock || !msg.message) return;
-
     const remoteJid = msg.key.remoteJid || '';
     if (remoteJid === 'status@broadcast') return;
 
@@ -852,12 +781,7 @@ async function handleMessage(msg: proto.IWebMessageInfo, isHistory = false) {
         text_content: text || '',
         is_from_me: msg.key.fromMe || false,
         is_forwarded: false,
-        raw_payload: {
-            content_type: contentType,
-            media_type: mediaType,
-            is_group: isGroup,
-            sender_jid: senderJid
-        },
+        raw_payload: { content_type: contentType, media_type: mediaType, is_group: isGroup, sender_jid: senderJid },
         timestamp,
     }).select('id').single();
 
@@ -892,26 +816,16 @@ async function handleMessage(msg: proto.IWebMessageInfo, isHistory = false) {
 function extractContent(msg: proto.IWebMessageInfo, ct: string | undefined) {
     const m = msg.message!;
     switch (ct) {
-        case 'conversation':
-            return { text: m.conversation || '', mediaType: null, mimeType: null };
-        case 'extendedTextMessage':
-            return { text: m.extendedTextMessage?.text || '', mediaType: null, mimeType: null };
-        case 'imageMessage':
-            return { text: m.imageMessage?.caption || '', mediaType: 'image', mimeType: m.imageMessage?.mimetype || null };
-        case 'videoMessage':
-            return { text: m.videoMessage?.caption || '', mediaType: 'video', mimeType: m.videoMessage?.mimetype || null };
-        case 'audioMessage':
-            return { text: '', mediaType: 'audio', mimeType: m.audioMessage?.mimetype || null };
-        case 'documentMessage':
-            return { text: m.documentMessage?.fileName || '', mediaType: 'document', mimeType: m.documentMessage?.mimetype || null };
-        case 'stickerMessage':
-            return { text: '', mediaType: 'sticker', mimeType: 'image/webp' };
-        case 'locationMessage':
-            return { text: 'Location: ' + m.locationMessage?.degreesLatitude + ',' + m.locationMessage?.degreesLongitude, mediaType: 'location', mimeType: null };
-        case 'contactMessage':
-            return { text: m.contactMessage?.displayName || 'Contact', mediaType: 'contact', mimeType: null };
-        default:
-            return { text: '', mediaType: null, mimeType: null };
+        case 'conversation': return { text: m.conversation || '', mediaType: null, mimeType: null };
+        case 'extendedTextMessage': return { text: m.extendedTextMessage?.text || '', mediaType: null, mimeType: null };
+        case 'imageMessage': return { text: m.imageMessage?.caption || '', mediaType: 'image', mimeType: m.imageMessage?.mimetype || null };
+        case 'videoMessage': return { text: m.videoMessage?.caption || '', mediaType: 'video', mimeType: m.videoMessage?.mimetype || null };
+        case 'audioMessage': return { text: '', mediaType: 'audio', mimeType: m.audioMessage?.mimetype || null };
+        case 'documentMessage': return { text: m.documentMessage?.fileName || '', mediaType: 'document', mimeType: m.documentMessage?.mimetype || null };
+        case 'stickerMessage': return { text: '', mediaType: 'sticker', mimeType: 'image/webp' };
+        case 'locationMessage': return { text: 'Location: ' + m.locationMessage?.degreesLatitude + ',' + m.locationMessage?.degreesLongitude, mediaType: 'location', mimeType: null };
+        case 'contactMessage': return { text: m.contactMessage?.displayName || 'Contact', mediaType: 'contact', mimeType: null };
+        default: return { text: '', mediaType: null, mimeType: null };
     }
 }
 
@@ -922,13 +836,7 @@ function extractContent(msg: proto.IWebMessageInfo, ct: string | undefined) {
 async function ensureContact(userId: string, phone: string, jid: string): Promise<string> {
     const { data } = await supabase.from('contacts').select('id').eq('wa_id', jid).eq('user_id', userId).maybeSingle();
     if (data) return data.id;
-
-    const { data: c, error } = await supabase.from('contacts').insert({
-        user_id: userId,
-        wa_id: jid,
-        display_name: phone
-    }).select('id').single();
-
+    const { data: c, error } = await supabase.from('contacts').insert({ user_id: userId, wa_id: jid, display_name: phone }).select('id').single();
     if (error) {
         const { data: r } = await supabase.from('contacts').select('id').eq('wa_id', jid).eq('user_id', userId).maybeSingle();
         return r?.id || 'unknown';
@@ -939,23 +847,13 @@ async function ensureContact(userId: string, phone: string, jid: string): Promis
 async function ensureChat(userId: string, jid: string, isGroup: boolean): Promise<string> {
     const { data } = await supabase.from('chats').select('id').eq('wa_chat_id', jid).eq('user_id', userId).maybeSingle();
     if (data) return data.id;
-
     let chatTitle = jid.split('@')[0];
     if (isGroup && sock) {
-        try {
-            chatTitle = (await sock.groupMetadata(jid)).subject || chatTitle;
-        } catch (err) {
+        try { chatTitle = (await sock.groupMetadata(jid)).subject || chatTitle; } catch (err) {
             logger.debug({ err, jid }, 'Failed to fetch group metadata');
         }
     }
-
-    const { data: c, error } = await supabase.from('chats').insert({
-        user_id: userId,
-        wa_chat_id: jid,
-        chat_type: isGroup ? 'group' : 'individual',
-        title: chatTitle
-    }).select('id').single();
-
+    const { data: c, error } = await supabase.from('chats').insert({ user_id: userId, wa_chat_id: jid, chat_type: isGroup ? 'group' : 'individual', title: chatTitle }).select('id').single();
     if (error) {
         const { data: r } = await supabase.from('chats').select('id').eq('wa_chat_id', jid).eq('user_id', userId).maybeSingle();
         return r?.id || 'unknown';
@@ -970,23 +868,12 @@ async function ensureChat(userId: string, jid: string, isGroup: boolean): Promis
 async function storeAttachment(userId: string, msgId: string, chatId: string, buf: Buffer, type: string, mime: string) {
     const ext = mime.split('/')[1]?.split(';')[0] || 'bin';
     const key = 'attachments/' + new Date().toISOString().split('T')[0] + '/' + msgId + '.' + ext;
-
     const { error: uploadErr } = await supabase.storage.from('attachments').upload(key, buf, { contentType: mime });
-    if (uploadErr) {
-        logger.error({ uploadErr }, 'Upload failed');
-        return;
-    }
-
+    if (uploadErr) { logger.error({ uploadErr }, 'Upload failed'); return; }
     const { data: urlData } = supabase.storage.from('attachments').getPublicUrl(key);
-
     await supabase.from('attachments').insert({
-        user_id: userId,
-        message_id: msgId,
-        file_type: type,
-        mime_type: mime,
-        file_size_bytes: buf.length,
-        storage_key: key,
-        storage_url: urlData?.publicUrl || key,
+        user_id: userId, message_id: msgId, file_type: type, mime_type: mime,
+        file_size_bytes: buf.length, storage_key: key, storage_url: urlData?.publicUrl || key,
     });
 }
 
@@ -996,26 +883,17 @@ async function storeAttachment(userId: string, msgId: string, chatId: string, bu
 
 async function generateEmbedding(userId: string, chatId: string, msgId: string, text: string) {
     if (!OPENROUTER_API_KEY) return;
-
     const r = await fetch('https://openrouter.ai/api/v1/embeddings', {
         method: 'POST',
-        headers: {
-            'Authorization': 'Bearer ' + OPENROUTER_API_KEY,
-            'Content-Type': 'application/json'
-        },
+        headers: { 'Authorization': 'Bearer ' + OPENROUTER_API_KEY, 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: EMBEDDING_MODEL, input: text.substring(0, 8000) }),
     });
-
     const d = await r.json();
     const emb = d?.data?.[0]?.embedding;
     if (emb) {
         await supabase.from('embeddings').insert({
-            user_id: userId,
-            message_id: msgId,
-            chat_id: chatId,
-            chunk_index: 0,
-            chunk_text: text.substring(0, 8000),
-            embedding: JSON.stringify(emb),
+            user_id: userId, message_id: msgId, chat_id: chatId,
+            chunk_index: 0, chunk_text: text.substring(0, 8000), embedding: JSON.stringify(emb),
         });
     }
 }
@@ -1027,7 +905,6 @@ async function generateEmbedding(userId: string, chatId: string, msgId: string, 
 async function main() {
     logger.info('=== Rememora Baileys Bridge + AI Chatbot ===');
     logger.info({ bot: BOT_ENABLED, triggers: BOT_TRIGGERS }, 'Bot configuration');
-
     app.listen(PORT, '0.0.0.0', () => logger.info('Server on port ' + PORT + ' - QR at /qr'));
     await startBaileys();
 }
