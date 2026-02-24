@@ -51,8 +51,8 @@ export default function PeopleSection() {
       .from('contacts')
       .select('*')
       .eq('user_id', userId)
-      .order('name', { ascending: true });
-    setContacts(data || []);
+      .order('display_name', { ascending: true });
+    setContacts((data || []).map((c: any) => ({ id: c.id, name: c.display_name || c.wa_id, phone: c.wa_id, message_count: c.message_count || 0, last_seen: c.updated_at, tags: c.tags, notes: c.notes })));
     setLoading(false);
   }
 
