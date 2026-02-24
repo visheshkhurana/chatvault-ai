@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, getInternalUserId } from '@/lib/supabase';
 import {
   MessageSquare, Search, Paperclip, FileText, Image,
   Film, ChevronRight, ArrowLeft, Download, Clock,
@@ -102,12 +102,12 @@ export default function MessagesSection() {
 
   async function loadChats() {
     setLoading(true);
-    const { data: session } = await supabase.auth.getSession();
-    if (!session?.session?.user) return;
+    const userId = await getInternalUserId();
+    if (!userId) return;
     const { data } = await supabase
       .from('chats')
       .select('*')
-      .eq('user_id', session.session.user.id)
+      .eq('user_id', userId)
       .order('last_message_at', { ascending: false });
     setChats(data || []);
     setLoading(false);
@@ -124,8 +124,8 @@ export default function MessagesSection() {
   }
 
   async function loadAttachments() {
-    const { data: session } = await supabase.auth.getSession();
-    if (!session?.session?.user) return;
+    const userId = await getInternalUserId();
+    if (!userId) return;
     const { data } = await supabase
       .from('attachments')
       .select('*')
@@ -136,12 +136,12 @@ export default function MessagesSection() {
 
   async function handleSearch() {
     if (!searchQuery.trim()) return;
-    const { data: session } = await supabase.auth.getSession();
-    if (!session?.session?.user) return;
+    const userId = await getInternalUserId();
+    if (!userId) return;
     const { data } = await supabase
       .from('messages')
       .select('*')
-      .eq('user_id', session.session.user.id)
+      .eq('user_id', userId)
       .ilike('content', '%' + searchQuery + '%')
       .order('created_at', { ascending: false })
       .limit(50);
