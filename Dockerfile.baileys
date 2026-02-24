@@ -13,8 +13,8 @@ COPY package.json package-lock.json* ./
 # Install all dependencies
 RUN npm install
 
-# Install Baileys-specific dependencies
-RUN npm install @whiskeysockets/baileys@latest @hapi/boom qrcode pino
+# Install Baileys-specific dependencies (pinned to stable version)
+RUN npm install @whiskeysockets/baileys@6.7.9 @hapi/boom qrcode pino
 
 # Copy source code
 COPY src/ ./src/
@@ -28,7 +28,7 @@ EXPOSE 3001
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-  CMD curl -f http://localhost:3001/health || exit 1
+    CMD curl -f http://localhost:3001/health || exit 1
 
 # Start the Baileys bridge
 CMD ["npx", "tsx", "src/server/baileys.ts"]
