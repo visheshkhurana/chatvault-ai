@@ -284,7 +284,7 @@ async function startBaileys() {
         
         printQRInTerminal: true,
                 browser: ['Ubuntu', 'Chrome', '20.0.04'],
-                connectTimeoutMs: 60000,
+                connectTimeoutMs: 60000,        version: [2, 3000, 1033893291],
         syncFullHistory: true,
     });
 
