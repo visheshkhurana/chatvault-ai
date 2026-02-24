@@ -492,7 +492,7 @@ async function maybeHandleBotQuery(msg: proto.IWebMessageInfo) {
 
     if (isFromMe && isSelfChat) {
         isBotQuery = true;
-    } else if (isFromMe) {
+    } else if (!isFromMe) {
         for (const trigger of BOT_TRIGGERS) {
             if (textLower.startsWith(trigger.toLowerCase())) {
                 isBotQuery = true;
