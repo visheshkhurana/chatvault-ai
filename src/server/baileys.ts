@@ -280,16 +280,16 @@ async function startBaileys() {
 
     sock = makeWASocket({
         auth: state,
-        logger: pino({ level: 'warn' }),
+        logger: pino({ level: 'debug' }),
         
         printQRInTerminal: true,
-                browser: ['Rememora', 'Chrome', '120.0'],
+                browser: ['Ubuntu', 'Chrome', '20.0.04'],
                 connectTimeoutMs: 60000,
         syncFullHistory: true,
     });
 
     sock.ev.on('connection.update', async (update: any) => {
-        const { connection, lastDisconnect, qr } = update;
+        const { connection, lastDisconnect, qr } = update;        logger.info({ connection, qr: !!qr, lastDisconnect: lastDisconnect?.error?.message, update: JSON.stringify(update).substring(0, 500) }, 'connection.update event');
 
         if (qr) {
             qrCode = await QRCode.toDataURL(qr);
@@ -314,7 +314,7 @@ async function startBaileys() {
             connectionStatus = 'disconnected';
             const code = (lastDisconnect?.error as Boom)?.output?.statusCode;
             if (code !== DisconnectReason.loggedOut) {
-                logger.info('Reconnecting in 5s...');
+                logger.error({ code, error: lastDisconnect?.error?.message || lastDisconnect?.error, stack: lastDisconnect?.error?.stack }, 'Connection closed, reconnecting in 5s...');
                 setTimeout(startBaileys, 5000);
             } else {
                 logger.error('Logged out. Delete auth_state and restart.');
