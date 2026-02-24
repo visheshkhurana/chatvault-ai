@@ -281,7 +281,7 @@ async function startBaileys() {
     sock = makeWASocket({
         auth: state,
         logger: pino({ level: 'silent' }),
-        printQRInTerminal: true,
+        
         browser: ['Rememora', 'Chrome', '120.0'],
         syncFullHistory: true,
     });
