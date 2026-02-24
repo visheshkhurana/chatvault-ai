@@ -7,7 +7,6 @@ import { TabType } from '@/types/dashboard';
 
 import DashboardSidebar from '@/components/DashboardSidebar';
 import MobileTabBar from '@/components/MobileTabBar';
-
 import HomeSection from '@/components/dashboard/HomeSection';
 import MessagesSection from '@/components/dashboard/MessagesSection';
 import ActionsSection from '@/components/dashboard/ActionsSection';
@@ -86,7 +85,7 @@ export default function DashboardPage() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
-        const res = await fetch(BRIDGE_URL + '/api/status/' + session.user.id);
+        const res = await fetch(BRIDGE_URL + '/status');
         if (res.ok) {
           const data = await res.json();
           setBridgeStatus({ connected: data.connected, phone: data.phone, name: data.name });
