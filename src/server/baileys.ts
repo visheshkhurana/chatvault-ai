@@ -483,8 +483,7 @@ async function startBaileys() {
                     const isSelfMsg = msg.key.fromMe && (
                         msg.key.remoteJid === ownerJid ||
                         msg.key.remoteJid?.split('@')[0]?.split(':')[0] === ownerPhone ||
-                        (ownerLid && msg.key.remoteJid === ownerLid) ||
-                        msg.key.remoteJid?.endsWith('@lid')
+                        (ownerLid && msg.key.remoteJid === ownerLid)
                       );
                     const msgAge = msg.messageTimestamp ? (Date.now() / 1000) - Number(msg.messageTimestamp) : Infinity;
                     const isRecent = msgAge < 120; // within last 2 minutes
@@ -510,8 +509,7 @@ async function startBaileys() {
                 const isSelf = key.fromMe && (
                     key.remoteJid === ownerJid ||
                     key.remoteJid?.split('@')[0]?.split(':')[0] === ownerPhone ||
-                    (ownerLid && key.remoteJid === ownerLid) ||
-                    key.remoteJid?.endsWith('@lid')
+                    (ownerLid && key.remoteJid === ownerLid)
                   );
                 if (!isSelf) continue;
                 // If message content is available in the update, process it
@@ -542,7 +540,7 @@ async function maybeHandleBotQuery(msg: proto.IWebMessageInfo) {
     if (!text || text.length < 2) return;
 
     const isFromMe = msg.key.fromMe || false;
-    const isSelfChat = remoteJid === ownerJid || remoteJid?.split('@')[0]?.split(':')[0] === sock?.user?.id?.split(':')[0]?.split('@')[0] || (ownerLid && remoteJid === ownerLid) || remoteJid?.endsWith('@lid');
+    const isSelfChat = remoteJid === ownerJid || remoteJid?.split('@')[0]?.split(':')[0] === sock?.user?.id?.split(':')[0]?.split('@')[0] || (ownerLid && remoteJid === ownerLid);
     const textLower = text.toLowerCase().trim();
 
     let isBotQuery = false;
