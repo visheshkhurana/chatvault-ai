@@ -244,6 +244,14 @@ async function ensureOwnerUser(): Promise<string> {
 
     const phoneNumber = sock.user.id.split(':')[0].split('@')[0];
     ownerJid = sock.user.id;
+    // Capture LID for multi-device self-chat detection
+    try {
+      const lidUser = sock?.user?.lid;
+      if (lidUser) {
+        ownerLid = lidUser.split(':')[0] + '@lid';
+        logger.info({ ownerLid }, 'Captured owner LID');
+      }
+    } catch (e) { /* lid not available */ }
 
     const { data: users } = await supabase.from('users').select('id').eq('phone', phoneNumber).maybeSingle();
     if (users?.id) {
@@ -363,6 +371,11 @@ async function startBaileys() {
             connectionStatus = 'connected';
             qrCode = null;
             logger.info('Connected!');
+        // Capture LID for multi-device self-chat
+        if (sock?.user?.lid) {
+          ownerLid = sock.user.lid.split(':')[0] + '@lid';
+          logger.info({ ownerLid, ownerJid: sock.user.id }, 'Owner LID captured at connection');
+        }
             try {
                 await ensureOwnerUser();
                 await backupAuthToSupabase();
@@ -469,12 +482,14 @@ async function startBaileys() {
                 if (BOT_ENABLED) {
                     const isSelfMsg = msg.key.fromMe && (
                         msg.key.remoteJid === ownerJid ||
-                        msg.key.remoteJid?.split('@')[0]?.split(':')[0] === ownerPhone
-                    );
+                        msg.key.remoteJid?.split('@')[0]?.split(':')[0] === ownerPhone ||
+                        (ownerLid && msg.key.remoteJid === ownerLid) ||
+                        msg.key.remoteJid?.endsWith('@lid')
+                      );
                     const msgAge = msg.messageTimestamp ? (Date.now() / 1000) - Number(msg.messageTimestamp) : Infinity;
                     const isRecent = msgAge < 120; // within last 2 minutes
                     if (type === 'notify' || (isSelfMsg && isRecent)) {
-                        logger.info({ fromMe: msg.key.fromMe, isSelfMsg, type, msgAge: Math.round(msgAge) }, 'Triggering bot check');
+                        logger.info({ fromMe: msg.key.fromMe, isSelfMsg, type, msgAge: Math.round(msgAge), remoteJid: msg.key.remoteJid, ownerLid, ownerJid }, 'Triggering bot check');
                         await maybeHandleBotQuery(msg);
                     }
                 }
@@ -494,8 +509,10 @@ async function startBaileys() {
                 // Only care about self-chat messages
                 const isSelf = key.fromMe && (
                     key.remoteJid === ownerJid ||
-                    key.remoteJid?.split('@')[0]?.split(':')[0] === ownerPhone
-                );
+                    key.remoteJid?.split('@')[0]?.split(':')[0] === ownerPhone ||
+                    (ownerLid && key.remoteJid === ownerLid) ||
+                    key.remoteJid?.endsWith('@lid')
+                  );
                 if (!isSelf) continue;
                 // If message content is available in the update, process it
                 if (msgUpdate?.message) {
@@ -525,7 +542,7 @@ async function maybeHandleBotQuery(msg: proto.IWebMessageInfo) {
     if (!text || text.length < 2) return;
 
     const isFromMe = msg.key.fromMe || false;
-    const isSelfChat = remoteJid === ownerJid || remoteJid?.split('@')[0]?.split(':')[0] === sock?.user?.id?.split(':')[0]?.split('@')[0];
+    const isSelfChat = remoteJid === ownerJid || remoteJid?.split('@')[0]?.split(':')[0] === sock?.user?.id?.split(':')[0]?.split('@')[0] || (ownerLid && remoteJid === ownerLid) || remoteJid?.endsWith('@lid');
     const textLower = text.toLowerCase().trim();
 
     let isBotQuery = false;
