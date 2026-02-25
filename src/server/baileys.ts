@@ -444,9 +444,13 @@ async function startBaileys() {
         }
     });
 
-    sock.ev.on('messages.upsert', async ({ messages, type }: any) => {
+        sock.ev.on('messages.upsert', async ({ messages, type }: any) => {
         const isHistory = type === 'append';
         if (type !== 'notify' && type !== 'append') return;
+
+        // Debug: log all upsert events for diagnostics
+        const ownerPhone = sock?.user?.id?.split(':')[0]?.split('@')[0] || '';
+        logger.info({ type, count: messages.length, fromMe: messages[0]?.key?.fromMe, remoteJid: messages[0]?.key?.remoteJid?.split('@')[0]?.substring(0, 6) }, 'messages.upsert event');
 
         if (isHistory) {
             syncStats.inProgress = true;
@@ -458,12 +462,49 @@ async function startBaileys() {
             try {
                 await handleMessage(msg, isHistory);
 
-                    // Chatbot: check if this is a bot query (real-time or self-chat synced messages)
-                                                        if (BOT_ENABLED && (type === 'notify' || (type === 'append' && msg.key.fromMe && !syncStats.inProgress))) {
-                                                                await maybeHandleBotQuery(msg);
-                                    }
+                // Chatbot: check if this is a bot query
+                // For self-chat (fromMe): always trigger bot regardless of sync state
+                // For notify (real-time incoming from others): always trigger
+                // For append during active history sync: skip unless it's a recent self-chat
+                if (BOT_ENABLED) {
+                    const isSelfMsg = msg.key.fromMe && (
+                        msg.key.remoteJid === ownerJid ||
+                        msg.key.remoteJid?.split('@')[0]?.split(':')[0] === ownerPhone
+                    );
+                    const msgAge = msg.messageTimestamp ? (Date.now() / 1000) - Number(msg.messageTimestamp) : Infinity;
+                    const isRecent = msgAge < 120; // within last 2 minutes
+                    if (type === 'notify' || (isSelfMsg && isRecent)) {
+                        logger.info({ fromMe: msg.key.fromMe, isSelfMsg, type, msgAge: Math.round(msgAge) }, 'Triggering bot check');
+                        await maybeHandleBotQuery(msg);
+                    }
+                }
             } catch (err) {
                 logger.error({ err, id: msg.key.id }, 'Message error');
+            }
+        }
+    });
+
+    // Catch self-chat messages that may not arrive via messages.upsert in multi-device mode
+    sock.ev.on('messages.update', async (updates: any[]) => {
+        if (!BOT_ENABLED || !sock) return;
+        const ownerPhone = sock?.user?.id?.split(':')[0]?.split('@')[0] || '';
+        for (const update of updates) {
+            try {
+                const { key, update: msgUpdate } = update;
+                // Only care about self-chat messages
+                const isSelf = key.fromMe && (
+                    key.remoteJid === ownerJid ||
+                    key.remoteJid?.split('@')[0]?.split(':')[0] === ownerPhone
+                );
+                if (!isSelf) continue;
+                // If message content is available in the update, process it
+                if (msgUpdate?.message) {
+                    logger.info({ remoteJid: key.remoteJid, fromMe: key.fromMe }, 'Self-chat via messages.update');
+                    const fullMsg = { key, message: msgUpdate.message, messageTimestamp: msgUpdate.messageTimestamp || Math.floor(Date.now() / 1000) } as any;
+                    await maybeHandleBotQuery(fullMsg);
+                }
+            } catch (err) {
+                logger.error({ err }, 'messages.update handler error');
             }
         }
     });
