@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase, getInternalUserId } from '@/lib/supabase';
 import {
   MessageSquare, Search, Paperclip, FileText, Image,
   Film, ChevronRight, ArrowLeft, Download, Clock,
-  Filter, X
+  Filter, X, Music, StickyNote, Calendar, User,
+  ExternalLink, AlertCircle, Play, Eye, ArrowUpDown,
+  FolderOpen, Grid3X3, List, ChevronDown
 } from 'lucide-react';
 import { formatPhone, getDisplayName, getInitials } from '@/lib/format-contact';
 
@@ -42,11 +44,38 @@ interface Attachment {
   id: string;
   message_id: string;
   file_name: string;
-  file_type: string;
+  file_type: string;  // 'image' | 'video' | 'audio' | 'document' | 'sticker'
+  mime_type: string;
   file_size: number;
+  file_size_bytes: number;
+  storage_key: string | null;
   url: string;
   created_at: string;
+  messages?: { sender_name: string; timestamp: string; chat_id: string };
 }
+
+interface MediaPreviewState {
+  attachment: Attachment;
+  signedUrl: string | null;
+  loading: boolean;
+  error: string | null;
+}
+
+type SortOption = 'date_desc' | 'date_asc' | 'name_asc' | 'name_desc' | 'size_desc' | 'size_asc';
+type GroupBy = 'none' | 'type' | 'chat' | 'date';
+type ViewMode = 'grid' | 'list';
+
+const FILE_TYPE_ICONS: Record<string, any> = {
+  image: Image, video: Film, audio: Music, document: FileText, sticker: StickyNote,
+};
+
+const FILE_TYPE_COLORS: Record<string, string> = {
+  image: 'bg-blue-50 text-blue-600',
+  video: 'bg-violet-50 text-violet-600',
+  audio: 'bg-amber-50 text-amber-600',
+  document: 'bg-brand-50 text-brand-600',
+  sticker: 'bg-rose-50 text-rose-600',
+};
 
 function timeAgo(date: string): string {
   const now = new Date();
@@ -100,6 +129,13 @@ export default function MessagesSection() {
   const [searchResults, setSearchResults] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [fileFilter, setFileFilter] = useState<string>('all');
+  const [fileSortBy, setFileSortBy] = useState<SortOption>('date_desc');
+  const [fileGroupBy, setFileGroupBy] = useState<GroupBy>('none');
+  const [fileViewMode, setFileViewMode] = useState<ViewMode>('grid');
+  const [fileSearch, setFileSearch] = useState('');
+  const [fileCounts, setFileCounts] = useState<Record<string, number>>({});
+  const [preview, setPreview] = useState<MediaPreviewState | null>(null);
+  const [showSortMenu, setShowSortMenu] = useState(false);
 
   useEffect(() => {
     loadChats();
@@ -144,12 +180,19 @@ export default function MessagesSection() {
   async function loadAttachments() {
     const userId = await getInternalUserId();
     if (!userId) return;
+    // Join with messages to get sender & chat info
     const { data } = await supabase
       .from('attachments')
-      .select('*')
+      .select('*, messages(sender_name, timestamp, chat_id)')
       .order('created_at', { ascending: false })
-      .limit(200);
+      .limit(300);
     setAttachments(data || []);
+    // Compute type counts
+    if (data) {
+      const c: Record<string, number> = { all: data.length };
+      data.forEach((a: any) => { c[a.file_type] = (c[a.file_type] || 0) + 1; });
+      setFileCounts(c);
+    }
   }
 
   async function handleSearch() {
@@ -166,15 +209,90 @@ export default function MessagesSection() {
     setSearchResults(data || []);
   }
 
-  const filteredAttachments = useMemo(() => {
-    if (fileFilter === 'all') return attachments;
-    return attachments.filter(a => {
-      if (fileFilter === 'images') return a.file_type?.startsWith('image');
-      if (fileFilter === 'videos') return a.file_type?.startsWith('video');
-      if (fileFilter === 'documents') return a.file_type?.includes('pdf') || a.file_type?.includes('doc');
-      return true;
+  // Close preview on Escape
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') setPreview(null); };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, []);
+
+  const openPreview = useCallback(async (att: any) => {
+    const hasFile = att.storage_key && att.storage_key !== null;
+    setPreview({
+      attachment: att, signedUrl: null, loading: hasFile,
+      error: hasFile ? null : 'This file was imported from a chat export. The actual media file is not stored yet.',
     });
-  }, [attachments, fileFilter]);
+    if (hasFile) {
+      try {
+        const res = await fetch(`/api/attachments/${att.id}`);
+        if (!res.ok) throw new Error('Failed to load');
+        const data = await res.json();
+        setPreview(prev => prev ? { ...prev, signedUrl: data.data?.url || data.url, loading: false } : null);
+      } catch {
+        setPreview(prev => prev ? { ...prev, loading: false, error: 'Failed to load media.' } : null);
+      }
+    }
+  }, []);
+
+  const filteredAttachments = useMemo(() => {
+    let result = attachments;
+    // Type filter
+    if (fileFilter !== 'all') {
+      result = result.filter(a => a.file_type === fileFilter);
+    }
+    // Search filter
+    if (fileSearch.trim()) {
+      const q = fileSearch.toLowerCase();
+      result = result.filter(a =>
+        a.file_name?.toLowerCase().includes(q) ||
+        (a as any).messages?.sender_name?.toLowerCase().includes(q) ||
+        a.mime_type?.toLowerCase().includes(q)
+      );
+    }
+    // Sort
+    result = [...result].sort((a, b) => {
+      switch (fileSortBy) {
+        case 'date_desc': return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+        case 'date_asc': return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
+        case 'name_asc': return (a.file_name || '').localeCompare(b.file_name || '');
+        case 'name_desc': return (b.file_name || '').localeCompare(a.file_name || '');
+        case 'size_desc': return (b.file_size_bytes || b.file_size || 0) - (a.file_size_bytes || a.file_size || 0);
+        case 'size_asc': return (a.file_size_bytes || a.file_size || 0) - (b.file_size_bytes || b.file_size || 0);
+        default: return 0;
+      }
+    });
+    return result;
+  }, [attachments, fileFilter, fileSearch, fileSortBy]);
+
+  // Group attachments
+  const groupedAttachments = useMemo(() => {
+    if (fileGroupBy === 'none') return { 'All Files': filteredAttachments };
+    const groups: Record<string, typeof filteredAttachments> = {};
+    filteredAttachments.forEach(att => {
+      let key = 'Other';
+      if (fileGroupBy === 'type') {
+        key = (att.file_type || 'other').charAt(0).toUpperCase() + (att.file_type || 'other').slice(1) + 's';
+      } else if (fileGroupBy === 'chat') {
+        const chatId = (att as any).messages?.chat_id;
+        const chat = chats.find(c => c.id === chatId);
+        key = chat ? getChatDisplayName(chat) : 'Unknown Chat';
+      } else if (fileGroupBy === 'date') {
+        if (att.created_at) {
+          const d = new Date(att.created_at);
+          const now = new Date();
+          const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
+          if (diffDays === 0) key = 'Today';
+          else if (diffDays === 1) key = 'Yesterday';
+          else if (diffDays < 7) key = 'This Week';
+          else if (diffDays < 30) key = 'This Month';
+          else key = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        }
+      }
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(att);
+    });
+    return groups;
+  }, [filteredAttachments, fileGroupBy, chats]);
 
   const tabs: { key: SubTab; label: string; icon: typeof MessageSquare }[] = [
     { key: 'conversations', label: 'Conversations', icon: MessageSquare },
@@ -308,55 +426,364 @@ export default function MessagesSection() {
         )}
 
         {subTab === 'files' && (
-          <div className="h-full overflow-y-auto">
-            <div className="flex items-center gap-2 px-6 py-3 border-b border-surface-100">
-              <Filter className="w-4 h-4 text-surface-400" />
-              {['all', 'images', 'videos', 'documents'].map(f => (
-                <button
-                  key={f}
-                  onClick={() => setFileFilter(f)}
-                  className={'px-3 py-1 rounded-full text-xs font-medium transition-colors '
-                    + (fileFilter === f
-                      ? 'bg-brand-100 text-brand-700'
-                      : 'bg-surface-100 text-surface-600 hover:bg-surface-200')}
-                >
-                  {f.charAt(0).toUpperCase() + f.slice(1)}
-                </button>
-              ))}
-            </div>
-            {filteredAttachments.length === 0 ? (
-              <div className="p-8 text-center">
-                <Paperclip className="w-12 h-12 text-surface-300 mx-auto mb-3" />
-                <p className="text-surface-500 text-sm">No files found</p>
+          <div className="h-full overflow-y-auto flex flex-col">
+            {/* Search + Controls Bar */}
+            <div className="px-6 pt-4 pb-3 space-y-3 border-b border-surface-100 bg-white">
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
+                <input
+                  type="text"
+                  placeholder="Search files by name, sender, or type..."
+                  value={fileSearch}
+                  onChange={e => setFileSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-surface-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent bg-white"
+                />
+                {fileSearch && (
+                  <button onClick={() => setFileSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <X className="w-4 h-4 text-surface-400 hover:text-surface-600" />
+                  </button>
+                )}
               </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-6">
-                {filteredAttachments.map(att => {
-                  const Icon = fileIcon(att.file_type);
-                  return (
-                    <div key={att.id} className="border border-surface-100 rounded-xl p-3 hover:shadow-sm transition-shadow group bg-white">
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-surface-50 flex items-center justify-center flex-shrink-0">
-                          <Icon className="w-5 h-5 text-surface-500" />
+              {/* Type filters with counts */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {['all', 'image', 'document', 'video', 'audio', 'sticker'].map(f => (
+                  <button
+                    key={f}
+                    onClick={() => setFileFilter(f)}
+                    className={'px-3 py-1.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1.5 '
+                      + (fileFilter === f
+                        ? 'bg-brand-600 text-white'
+                        : 'bg-surface-100 text-surface-600 hover:bg-surface-200')}
+                  >
+                    {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1) + 's'}
+                    {fileCounts[f] !== undefined && (
+                      <span className={'text-[10px] px-1.5 py-0.5 rounded-full '
+                        + (fileFilter === f ? 'bg-brand-700 text-brand-100' : 'bg-surface-200 text-surface-500')}>
+                        {fileCounts[f]}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+              {/* Sort, Group, View controls */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {/* Sort dropdown */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowSortMenu(!showSortMenu)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-surface-50 text-surface-600 hover:bg-surface-100 transition-colors"
+                    >
+                      <ArrowUpDown className="w-3.5 h-3.5" />
+                      Sort
+                      <ChevronDown className="w-3 h-3" />
+                    </button>
+                    {showSortMenu && (
+                      <div className="absolute top-full left-0 mt-1 bg-white border border-surface-200 rounded-xl shadow-lg z-20 py-1 w-44">
+                        {([
+                          ['date_desc', 'Newest first'],
+                          ['date_asc', 'Oldest first'],
+                          ['name_asc', 'Name A–Z'],
+                          ['name_desc', 'Name Z–A'],
+                          ['size_desc', 'Largest first'],
+                          ['size_asc', 'Smallest first'],
+                        ] as [SortOption, string][]).map(([val, label]) => (
+                          <button
+                            key={val}
+                            onClick={() => { setFileSortBy(val); setShowSortMenu(false); }}
+                            className={'w-full text-left px-3 py-2 text-xs hover:bg-surface-50 transition-colors '
+                              + (fileSortBy === val ? 'text-brand-700 font-medium bg-brand-50' : 'text-surface-700')}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {/* Group by */}
+                  <div className="flex items-center gap-1 bg-surface-50 rounded-lg p-0.5">
+                    {([['none', 'None'], ['type', 'Type'], ['chat', 'Chat'], ['date', 'Date']] as [GroupBy, string][]).map(([val, label]) => (
+                      <button
+                        key={val}
+                        onClick={() => setFileGroupBy(val)}
+                        className={'px-2.5 py-1 rounded-md text-xs font-medium transition-colors '
+                          + (fileGroupBy === val ? 'bg-white text-surface-900 shadow-sm' : 'text-surface-500 hover:text-surface-700')}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-surface-400 mr-2">
+                    {filteredAttachments.length} file{filteredAttachments.length !== 1 ? 's' : ''}
+                  </span>
+                  <button
+                    onClick={() => setFileViewMode('grid')}
+                    className={'p-1.5 rounded-md transition-colors ' + (fileViewMode === 'grid' ? 'bg-surface-200 text-surface-800' : 'text-surface-400 hover:text-surface-600')}
+                  >
+                    <Grid3X3 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setFileViewMode('list')}
+                    className={'p-1.5 rounded-md transition-colors ' + (fileViewMode === 'list' ? 'bg-surface-200 text-surface-800' : 'text-surface-400 hover:text-surface-600')}
+                  >
+                    <List className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* File content */}
+            <div className="flex-1 overflow-y-auto">
+              {filteredAttachments.length === 0 ? (
+                <div className="p-12 text-center">
+                  <Paperclip className="w-14 h-14 text-surface-200 mx-auto mb-3" />
+                  <p className="text-surface-500 text-sm font-medium">
+                    {fileSearch ? `No files matching "${fileSearch}"` : 'No files found'}
+                  </p>
+                  <p className="text-surface-400 text-xs mt-1">Files shared in your WhatsApp chats will appear here</p>
+                </div>
+              ) : (
+                <div className="p-6 space-y-6">
+                  {Object.entries(groupedAttachments).map(([group, items]) => (
+                    <div key={group}>
+                      {fileGroupBy !== 'none' && (
+                        <div className="flex items-center gap-2 mb-3">
+                          <FolderOpen className="w-4 h-4 text-surface-400" />
+                          <h3 className="text-sm font-semibold text-surface-700">{group}</h3>
+                          <span className="text-xs text-surface-400">({items.length})</span>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-surface-900 truncate">{att.file_name}</p>
-                          <p className="text-xs text-surface-400 mt-0.5">
-                            {fileSize(att.file_size)} {att.created_at ? ' · ' + timeAgo(att.created_at) : ''}
+                      )}
+                      {fileViewMode === 'grid' ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                          {items.map((att: any) => {
+                            const Icon = FILE_TYPE_ICONS[att.file_type] || FileText;
+                            const colorClass = FILE_TYPE_COLORS[att.file_type] || 'bg-surface-50 text-surface-600';
+                            const bgColor = colorClass.split(' ')[0];
+                            const txtColor = colorClass.split(' ')[1];
+                            const hasFile = att.storage_key != null;
+                            const chatId = att.messages?.chat_id;
+                            const chat = chats.find((c: Chat) => c.id === chatId);
+                            const chatName = chat ? getChatDisplayName(chat) : null;
+                            return (
+                              <div
+                                key={att.id}
+                                onClick={() => openPreview(att)}
+                                className="bg-white rounded-xl border border-surface-100 hover:border-brand-200 hover:shadow-md transition-all cursor-pointer group"
+                              >
+                                {/* Thumbnail area */}
+                                <div className={`w-full h-28 rounded-t-xl flex items-center justify-center relative ${bgColor}`}>
+                                  <Icon className={`w-10 h-10 ${txtColor}`} />
+                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-t-xl transition-all flex items-center justify-center">
+                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 rounded-full p-2 shadow-sm">
+                                      {att.file_type === 'video' || att.file_type === 'audio' ? (
+                                        <Play className="w-5 h-5 text-surface-700" />
+                                      ) : (
+                                        <Eye className="w-5 h-5 text-surface-700" />
+                                      )}
+                                    </div>
+                                  </div>
+                                  {!hasFile && (
+                                    <div className="absolute top-2 right-2">
+                                      <span className="bg-amber-100 text-amber-600 text-[10px] px-1.5 py-0.5 rounded-full font-medium">No media</span>
+                                    </div>
+                                  )}
+                                </div>
+                                {/* Info */}
+                                <div className="p-3">
+                                  <p className="text-sm font-medium text-surface-900 truncate" title={att.file_name}>
+                                    {att.file_name}
+                                  </p>
+                                  <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                                    <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium capitalize ${colorClass}`}>
+                                      {att.file_type}
+                                    </span>
+                                    {(att.file_size_bytes || att.file_size) > 0 && (
+                                      <span className="text-[10px] text-surface-400">{fileSize(att.file_size_bytes || att.file_size)}</span>
+                                    )}
+                                  </div>
+                                  {chatName && (
+                                    <div className="flex items-center gap-1 mt-1.5 text-[11px] text-surface-400">
+                                      <MessageSquare className="w-3 h-3" />
+                                      <span className="truncate">{chatName}</span>
+                                    </div>
+                                  )}
+                                  {att.messages?.sender_name && (
+                                    <div className="flex items-center gap-1 mt-0.5 text-[11px] text-surface-400">
+                                      <User className="w-3 h-3" />
+                                      <span className="truncate">{getDisplayName(att.messages.sender_name, att.messages.sender_name)}</span>
+                                    </div>
+                                  )}
+                                  {att.created_at && (
+                                    <div className="flex items-center gap-1 mt-0.5 text-[11px] text-surface-400">
+                                      <Calendar className="w-3 h-3" />
+                                      <span>{new Date(att.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        /* List view */
+                        <div className="space-y-1.5">
+                          {items.map((att: any) => {
+                            const Icon = FILE_TYPE_ICONS[att.file_type] || FileText;
+                            const colorClass = FILE_TYPE_COLORS[att.file_type] || 'bg-surface-50 text-surface-600';
+                            const bgColor = colorClass.split(' ')[0];
+                            const txtColor = colorClass.split(' ')[1];
+                            const chatId = att.messages?.chat_id;
+                            const chat = chats.find((c: Chat) => c.id === chatId);
+                            const chatName = chat ? getChatDisplayName(chat) : null;
+                            return (
+                              <div
+                                key={att.id}
+                                onClick={() => openPreview(att)}
+                                className="bg-white rounded-lg border border-surface-100 px-4 py-3 hover:bg-surface-50 hover:border-brand-200 transition-all cursor-pointer group flex items-center gap-3"
+                              >
+                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${bgColor}`}>
+                                  <Icon className={`w-5 h-5 ${txtColor}`} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-surface-900 truncate">{att.file_name}</p>
+                                  <p className="text-xs text-surface-400 mt-0.5 flex items-center gap-2">
+                                    <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium capitalize ${colorClass}`}>
+                                      {att.file_type}
+                                    </span>
+                                    {(att.file_size_bytes || att.file_size) > 0 && (
+                                      <span>{fileSize(att.file_size_bytes || att.file_size)}</span>
+                                    )}
+                                    {chatName && <span className="truncate max-w-[120px]">· {chatName}</span>}
+                                    {att.created_at && <span>· {timeAgo(att.created_at)}</span>}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  {att.file_type === 'video' || att.file_type === 'audio' ? (
+                                    <Play className="w-4 h-4 text-surface-400" />
+                                  ) : (
+                                    <Eye className="w-4 h-4 text-surface-400" />
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Media Preview Modal */}
+            {preview && (() => {
+              const att = preview.attachment;
+              const Icon = FILE_TYPE_ICONS[att.file_type] || FileText;
+              const colorClass = FILE_TYPE_COLORS[att.file_type] || 'bg-surface-50 text-surface-600';
+              const bgColor = colorClass.split(' ')[0];
+              const txtColor = colorClass.split(' ')[1];
+              return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setPreview(null)}>
+                  <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+                  <div className="relative bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-surface-100">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${bgColor}`}>
+                          <Icon className={`w-5 h-5 ${txtColor}`} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-surface-900 truncate">{att.file_name}</p>
+                          <p className="text-xs text-surface-500">
+                            {att.file_type}{att.mime_type && att.mime_type !== 'application/octet-stream' ? ` · ${att.mime_type}` : ''}
                           </p>
                         </div>
-                        {att.url && (
-                          <a href={att.url} target="_blank" rel="noopener noreferrer"
-                            className="p-1.5 rounded hover:bg-surface-100 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Download className="w-4 h-4 text-surface-400" />
-                          </a>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {preview.signedUrl && (
+                          <>
+                            <a href={preview.signedUrl} target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg hover:bg-surface-100 text-surface-500" title="Open">
+                              <ExternalLink className="w-5 h-5" />
+                            </a>
+                            <a href={preview.signedUrl} download={att.file_name} className="p-2 rounded-lg hover:bg-surface-100 text-surface-500" title="Download">
+                              <Download className="w-5 h-5" />
+                            </a>
+                          </>
                         )}
+                        <button onClick={() => setPreview(null)} className="p-2 rounded-lg hover:bg-surface-100 text-surface-500">
+                          <X className="w-5 h-5" />
+                        </button>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                    {/* Content */}
+                    <div className="p-6">
+                      {preview.loading ? (
+                        <div className="flex flex-col items-center py-16">
+                          <div className="w-10 h-10 border-2 border-brand-200 border-t-brand-600 rounded-full animate-spin mb-4" />
+                          <p className="text-sm text-surface-500">Loading media...</p>
+                        </div>
+                      ) : preview.error ? (
+                        <div className="flex flex-col items-center py-12 px-4">
+                          <div className={`w-20 h-20 rounded-2xl flex items-center justify-center mb-4 ${bgColor}`}>
+                            <Icon className={`w-10 h-10 ${txtColor}`} />
+                          </div>
+                          <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg p-4 max-w-md">
+                            <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                            <p className="text-sm text-amber-800">{preview.error}</p>
+                          </div>
+                        </div>
+                      ) : preview.signedUrl ? (
+                        <div className="flex items-center justify-center">
+                          {(att.file_type === 'image' || att.file_type === 'sticker') ? (
+                            <img src={preview.signedUrl} alt={att.file_name} className="max-w-full max-h-[60vh] rounded-lg object-contain" />
+                          ) : att.file_type === 'video' ? (
+                            <video controls className="max-w-full max-h-[60vh] rounded-lg">
+                              <source src={preview.signedUrl} type={att.mime_type || 'video/mp4'} />
+                            </video>
+                          ) : att.file_type === 'audio' ? (
+                            <div className="w-full max-w-md">
+                              <div className={`w-24 h-24 rounded-2xl flex items-center justify-center mx-auto mb-6 ${bgColor}`}>
+                                <Music className={`w-12 h-12 ${txtColor}`} />
+                              </div>
+                              <audio controls className="w-full">
+                                <source src={preview.signedUrl} type={att.mime_type || 'audio/ogg'} />
+                              </audio>
+                            </div>
+                          ) : att.mime_type === 'application/pdf' ? (
+                            <iframe src={preview.signedUrl} className="w-full h-[60vh] rounded-lg border" title={att.file_name} />
+                          ) : (
+                            <div className="flex flex-col items-center py-8">
+                              <div className={`w-20 h-20 rounded-2xl flex items-center justify-center mb-4 ${bgColor}`}>
+                                <FileText className={`w-10 h-10 ${txtColor}`} />
+                              </div>
+                              <p className="text-sm text-surface-600 mb-4">Preview not available for this file type.</p>
+                              <a href={preview.signedUrl} download={att.file_name} className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors flex items-center gap-2">
+                                <Download className="w-4 h-4" /> Download File
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
+                    {/* Footer metadata */}
+                    <div className="px-6 py-3 border-t border-surface-100 bg-surface-50 flex items-center gap-4 text-xs text-surface-500">
+                      {(att as any).messages?.sender_name && (
+                        <span className="flex items-center gap-1"><User className="w-3 h-3" />{getDisplayName((att as any).messages.sender_name, (att as any).messages.sender_name)}</span>
+                      )}
+                      {att.created_at && (
+                        <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{new Date(att.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                      )}
+                      {(att.file_size_bytes || att.file_size) > 0 && (
+                        <span>{fileSize(att.file_size_bytes || att.file_size)}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
 
