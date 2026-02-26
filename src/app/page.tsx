@@ -293,18 +293,47 @@ export default function Home() {
             </section>
 
             {/* Footer */}
-            <footer className="bg-white border-t border-surface-100 py-10">
+            <footer className="bg-white border-t border-surface-100 py-12">
                 <div className="max-w-7xl mx-auto px-6">
-                    <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-gradient-to-br from-brand-500 to-brand-700 rounded-lg flex items-center justify-center">
-                                <MessageSquare className="w-4 h-4 text-white" />
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+                        {/* Brand */}
+                        <div className="md:col-span-2">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-8 h-8 bg-gradient-to-br from-brand-500 to-brand-700 rounded-lg flex items-center justify-center">
+                                    <MessageSquare className="w-4 h-4 text-white" />
+                                </div>
+                                <span className="font-bold text-surface-900">Rememora</span>
                             </div>
-                            <span className="font-semibold text-surface-900">Rememora</span>
+                            <p className="text-sm text-surface-400 leading-relaxed max-w-sm">
+                                Your WhatsApp memory, always searchable. Built with privacy first.
+                                Find any message, document, or conversation instantly with AI.
+                            </p>
                         </div>
-                        <p className="text-sm text-surface-400">
-                            Your WhatsApp memory, always searchable. Built with privacy first.
-                        </p>
+
+                        {/* Product */}
+                        <div>
+                            <h4 className="text-sm font-semibold text-surface-900 mb-4">Product</h4>
+                            <div className="space-y-3">
+                                <a href="#features" className="block text-sm text-surface-500 hover:text-surface-700 transition-colors">Features</a>
+                                <a href="#how-it-works" className="block text-sm text-surface-500 hover:text-surface-700 transition-colors">How It Works</a>
+                                <a href="#security" className="block text-sm text-surface-500 hover:text-surface-700 transition-colors">Security</a>
+                            </div>
+                        </div>
+
+                        {/* Legal */}
+                        <div>
+                            <h4 className="text-sm font-semibold text-surface-900 mb-4">Legal</h4>
+                            <div className="space-y-3">
+                                <Link href="/privacy" className="block text-sm text-surface-500 hover:text-surface-700 transition-colors">Privacy Policy</Link>
+                                <Link href="/terms" className="block text-sm text-surface-500 hover:text-surface-700 transition-colors">Terms of Service</Link>
+                                <a href="mailto:support@rememora.app" className="block text-sm text-surface-500 hover:text-surface-700 transition-colors">Contact</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="border-t border-surface-100 mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <p className="text-xs text-surface-400">© {new Date().getFullYear()} Rememora. All rights reserved.</p>
+                        <p className="text-xs text-surface-400">Made with care for your privacy.</p>
                     </div>
                 </div>
             </footer>
