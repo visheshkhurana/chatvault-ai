@@ -9,10 +9,8 @@ interface Contact {
   id: string;
   name: string;
   phone: string;
-  message_count: number;
   last_seen?: string;
   tags?: string[];
-  notes?: string;
 }
 
 function avatarColor(name: string): string {
@@ -50,10 +48,8 @@ export default function PeopleSection() {
       id: c.id,
       name: getDisplayName(c.display_name, c.wa_id),
       phone: c.wa_id,
-      message_count: c.message_count || 0,
       last_seen: c.updated_at,
       tags: c.tags,
-      notes: c.notes,
     })));
     setLoading(false);
   }
@@ -106,9 +102,7 @@ export default function PeopleSection() {
                     <p className="font-medium text-surface-900 text-sm truncate">{contact.name}</p>
                     <p className="text-xs text-surface-400">{formatPhone(contact.phone)}</p>
                   </div>
-                  {contact.message_count > 0 && (
-                    <span className="text-[11px] text-surface-400 bg-surface-100 px-2 py-0.5 rounded-full">{contact.message_count} msgs</span>
-                  )}
+                  {/* message count not tracked in contacts table */}
                 </div>
               </button>
             );
@@ -133,14 +127,10 @@ export default function PeopleSection() {
                 </p>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="bg-surface-50 rounded-xl p-4">
-                <p className="text-xs text-surface-500 mb-1">Messages</p>
-                <p className="text-2xl font-bold text-surface-900">{selected.message_count || 0}</p>
-              </div>
-              <div className="bg-surface-50 rounded-xl p-4">
-                <p className="text-xs text-surface-500 mb-1">Last Seen</p>
-                <p className="text-sm font-medium text-surface-900 mt-1">{selected.last_seen ? new Date(selected.last_seen).toLocaleDateString() : 'N/A'}</p>
+            <div className="mb-6">
+              <div className="bg-surface-50 rounded-xl p-4 inline-block">
+                <p className="text-xs text-surface-500 mb-1">Last Active</p>
+                <p className="text-sm font-medium text-surface-900">{selected.last_seen ? new Date(selected.last_seen).toLocaleDateString() : 'N/A'}</p>
               </div>
             </div>
             {selected.tags && selected.tags.length > 0 && (
@@ -153,12 +143,7 @@ export default function PeopleSection() {
                 </div>
               </div>
             )}
-            {selected.notes && (
-              <div className="mb-4">
-                <h3 className="text-sm font-medium text-surface-700 mb-1">Notes</h3>
-                <p className="text-sm text-surface-600 leading-relaxed">{selected.notes}</p>
-              </div>
-            )}
+            {/* notes not stored in contacts table yet */}
           </div>
         </div>
       ) : (

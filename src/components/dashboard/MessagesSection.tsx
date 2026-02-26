@@ -11,12 +11,21 @@ import { formatPhone, getDisplayName, getInitials } from '@/lib/format-contact';
 
 type SubTab = 'conversations' | 'files' | 'search';
 
+interface ChatRow {
+  id: string;
+  title: string;
+  chat_type: string;       // 'individual' | 'group'
+  wa_chat_id: string;
+  last_message_at: string;
+  participant_count: number;
+}
+
 interface Chat {
   id: string;
   name: string;
   is_group: boolean;
   last_message_at: string;
-  unread_count: number;
+  wa_chat_id: string;
 }
 
 interface Message {
@@ -110,7 +119,15 @@ export default function MessagesSection() {
       .select('*')
       .eq('user_id', userId)
       .order('last_message_at', { ascending: false });
-    setChats(data || []);
+    // Map DB columns to our interface
+    const mapped: Chat[] = (data || []).map((row: any) => ({
+      id: row.id,
+      name: row.title || row.wa_chat_id || '',
+      is_group: row.chat_type === 'group',
+      last_message_at: row.last_message_at,
+      wa_chat_id: row.wa_chat_id || '',
+    }));
+    setChats(mapped);
     setLoading(false);
   }
 
@@ -237,11 +254,7 @@ export default function MessagesSection() {
                             <span className="text-xs text-surface-400 truncate">
                               {chat.is_group ? 'Group chat' : 'Personal chat'}
                             </span>
-                            {chat.unread_count > 0 && (
-                              <span className="ml-2 w-5 h-5 bg-brand-500 text-white text-[10px] rounded-full flex items-center justify-center font-semibold flex-shrink-0">
-                                {chat.unread_count > 9 ? '9+' : chat.unread_count}
-                              </span>
-                            )}
+                            {/* unread count not tracked yet */}
                           </div>
                         </div>
                       </div>
@@ -258,12 +271,12 @@ export default function MessagesSection() {
                     <ArrowLeft className="w-5 h-5" />
                   </button>
                   <div className={'w-8 h-8 rounded-full flex items-center justify-center font-semibold text-xs flex-shrink-0 '
-                    + avatarColor(getChatDisplayName(chats.find(c => c.id === selectedChat) || { name: '', is_group: false } as Chat))}>
-                    {getChatInitials(chats.find(c => c.id === selectedChat) || { name: '', is_group: false } as Chat)}
+                    + avatarColor(getChatDisplayName(chats.find(c => c.id === selectedChat) || { name: '', is_group: false, wa_chat_id: '' } as Chat))}>
+                    {getChatInitials(chats.find(c => c.id === selectedChat) || { name: '', is_group: false, wa_chat_id: '' } as Chat)}
                   </div>
                   <div>
                     <h3 className="font-medium text-surface-900 text-sm">
-                      {getChatDisplayName(chats.find(c => c.id === selectedChat) || { name: 'Chat', is_group: false } as Chat)}
+                      {getChatDisplayName(chats.find(c => c.id === selectedChat) || { name: 'Chat', is_group: false, wa_chat_id: '' } as Chat)}
                     </h3>
                   </div>
                 </div>

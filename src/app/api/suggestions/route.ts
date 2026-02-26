@@ -15,7 +15,7 @@ export const GET = withAuth(async (req: NextRequest, { user }) => {
         // 1. Recent chats → "Summarize chat with [title]"
         const { data: recentChats } = await supabaseAdmin
             .from('chats')
-            .select('id, title, name, is_group')
+            .select('id, title, chat_type, wa_chat_id')
             .eq('user_id', user.id)
             .order('last_message_at', { ascending: false })
             .limit(5);
@@ -25,7 +25,7 @@ export const GET = withAuth(async (req: NextRequest, { user }) => {
             for (const chat of recentChats) {
                 if (chatSuggestionCount >= 2) break;
 
-                const chatName = chat.title || chat.name || '';
+                const chatName = chat.title || chat.wa_chat_id || '';
 
                 // Skip chats that are just phone numbers — show friendly names only
                 if (isChatTitlePhoneNumber(chatName)) continue;
