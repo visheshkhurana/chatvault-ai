@@ -7,6 +7,7 @@ import {
   Film, ChevronRight, ArrowLeft, Download, Clock,
   Filter, X
 } from 'lucide-react';
+import { formatPhone, getDisplayName, getInitials } from '@/lib/format-contact';
 
 type SubTab = 'conversations' | 'files' | 'search';
 
@@ -38,20 +39,6 @@ interface Attachment {
   created_at: string;
 }
 
-function formatPhone(phone: string): string {
-  if (!phone) return 'Unknown';
-  const cleaned = phone.replace(/\D/g, '');
-  if (cleaned.length === 12 && cleaned.startsWith('91')) {
-    const n = cleaned.slice(2);
-    return '+91 ' + n.slice(0, 5) + ' ' + n.slice(5);
-  }
-  if (cleaned.length >= 10) {
-    const last10 = cleaned.slice(-10);
-    return '+' + cleaned.slice(0, -10) + ' ' + last10.slice(0, 5) + ' ' + last10.slice(5);
-  }
-  return phone;
-}
-
 function timeAgo(date: string): string {
   const now = new Date();
   const d = new Date(date);
@@ -80,8 +67,22 @@ function fileSize(bytes: number): string {
   return (bytes / 1048576).toFixed(1) + ' MB';
 }
 
+function avatarColor(name: string): string {
+  const colors = [
+    'bg-brand-100 text-brand-700',
+    'bg-blue-100 text-blue-700',
+    'bg-violet-100 text-violet-700',
+    'bg-amber-100 text-amber-700',
+    'bg-rose-100 text-rose-700',
+    'bg-cyan-100 text-cyan-700',
+  ];
+  let hash = 0;
+  for (let i = 0; i < (name || '').length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
+}
+
 export default function MessagesSection() {
-    const [subTab, setSubTab] = useState<SubTab>('conversations');
+  const [subTab, setSubTab] = useState<SubTab>('conversations');
   const [chats, setChats] = useState<Chat[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -164,6 +165,16 @@ export default function MessagesSection() {
     { key: 'search', label: 'Search', icon: Search },
   ];
 
+  function getChatDisplayName(chat: Chat): string {
+    if (chat.is_group) return chat.name || 'Group Chat';
+    return getDisplayName(chat.name, chat.name);
+  }
+
+  function getChatInitials(chat: Chat): string {
+    const name = getChatDisplayName(chat);
+    return getInitials(name);
+  }
+
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center gap-1 px-6 pt-6 pb-4 border-b border-surface-100">
@@ -188,7 +199,10 @@ export default function MessagesSection() {
             <div className={'border-r border-surface-100 overflow-y-auto '
               + (selectedChat ? 'hidden md:block md:w-80' : 'w-full md:w-80')}>
               {loading ? (
-                <div className="p-8 text-center text-surface-400">Loading conversations...</div>
+                <div className="p-8 text-center">
+                  <div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full mx-auto mb-3" />
+                  <p className="text-surface-400 text-sm">Loading conversations...</p>
+                </div>
               ) : chats.length === 0 ? (
                 <div className="p-8 text-center">
                   <MessageSquare className="w-12 h-12 text-surface-300 mx-auto mb-3" />
@@ -196,59 +210,73 @@ export default function MessagesSection() {
                   <p className="text-surface-400 text-xs mt-1">Connect WhatsApp to see your chats</p>
                 </div>
               ) : (
-                chats.map(chat => (
-                  <button
-                    key={chat.id}
-                    onClick={() => setSelectedChat(chat.id)}
-                    className={'w-full text-left px-4 py-3 border-b border-surface-50 hover:bg-surface-50 transition-colors '
-                      + (selectedChat === chat.id ? 'bg-brand-50' : '')}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 font-semibold text-sm flex-shrink-0">
-                        {(chat.name || '?')[0].toUpperCase()}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium text-surface-900 text-sm truncate">
-                            {chat.is_group ? chat.name : formatPhone(chat.name)}
-                          </span>
-                          <span className="text-xs text-surface-400 flex-shrink-0 ml-2">
-                            {chat.last_message_at ? timeAgo(chat.last_message_at) : ''}
-                          </span>
+                chats.map(chat => {
+                  const displayName = getChatDisplayName(chat);
+                  const initials = getChatInitials(chat);
+                  return (
+                    <button
+                      key={chat.id}
+                      onClick={() => setSelectedChat(chat.id)}
+                      className={'w-full text-left px-4 py-3.5 border-b border-surface-50 hover:bg-surface-50 transition-colors '
+                        + (selectedChat === chat.id ? 'bg-brand-50/50' : '')}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={'w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm flex-shrink-0 ' + avatarColor(displayName)}>
+                          {initials}
                         </div>
-                        {chat.unread_count > 0 && (
-                          <span className="inline-block mt-1 px-2 py-0.5 bg-brand-500 text-white text-xs rounded-full">
-                            {chat.unread_count} new
-                          </span>
-                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-surface-900 text-sm truncate">
+                              {displayName}
+                            </span>
+                            <span className="text-[11px] text-surface-400 flex-shrink-0 ml-2">
+                              {chat.last_message_at ? timeAgo(chat.last_message_at) : ''}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between mt-0.5">
+                            <span className="text-xs text-surface-400 truncate">
+                              {chat.is_group ? 'Group chat' : 'Personal chat'}
+                            </span>
+                            {chat.unread_count > 0 && (
+                              <span className="ml-2 w-5 h-5 bg-brand-500 text-white text-[10px] rounded-full flex items-center justify-center font-semibold flex-shrink-0">
+                                {chat.unread_count > 9 ? '9+' : chat.unread_count}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-surface-300 flex-shrink-0" />
-                    </div>
-                  </button>
-                ))
+                    </button>
+                  );
+                })
               )}
             </div>
 
             {selectedChat ? (
               <div className="flex-1 flex flex-col">
-                <div className="px-4 py-3 border-b border-surface-100 flex items-center gap-3">
+                <div className="px-4 py-3 border-b border-surface-100 flex items-center gap-3 bg-white">
                   <button onClick={() => setSelectedChat(null)} className="md:hidden p-1 hover:bg-surface-100 rounded">
                     <ArrowLeft className="w-5 h-5" />
                   </button>
-                  <h3 className="font-medium text-surface-900 text-sm">
-                    {chats.find(c => c.id === selectedChat)?.name || 'Chat'}
-                  </h3>
+                  <div className={'w-8 h-8 rounded-full flex items-center justify-center font-semibold text-xs flex-shrink-0 '
+                    + avatarColor(getChatDisplayName(chats.find(c => c.id === selectedChat) || { name: '', is_group: false } as Chat))}>
+                    {getChatInitials(chats.find(c => c.id === selectedChat) || { name: '', is_group: false } as Chat)}
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-surface-900 text-sm">
+                      {getChatDisplayName(chats.find(c => c.id === selectedChat) || { name: 'Chat', is_group: false } as Chat)}
+                    </h3>
+                  </div>
                 </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-surface-50/50">
                   {messages.length === 0 ? (
                     <p className="text-center text-surface-400 text-sm py-8">No messages</p>
                   ) : (
                     messages.map(msg => (
                       <div key={msg.id} className="max-w-[80%]">
-                        <div className="bg-surface-50 rounded-lg px-3 py-2">
-                          <p className="text-xs font-medium text-brand-600 mb-1">{formatPhone(msg.sender)}</p>
-                          <p className="text-sm text-surface-800">{msg.content}</p>
-                          <p className="text-xs text-surface-400 mt-1">{timeAgo(msg.created_at)}</p>
+                        <div className="bg-white rounded-xl px-3.5 py-2.5 shadow-sm border border-surface-100">
+                          <p className="text-xs font-medium text-brand-600 mb-1">{getDisplayName(msg.sender, msg.sender)}</p>
+                          <p className="text-sm text-surface-800 leading-relaxed">{msg.content}</p>
+                          <p className="text-[10px] text-surface-400 mt-1.5">{timeAgo(msg.created_at)}</p>
                         </div>
                       </div>
                     ))
@@ -256,9 +284,9 @@ export default function MessagesSection() {
                 </div>
               </div>
             ) : (
-              <div className="hidden md:flex flex-1 items-center justify-center text-surface-400">
+              <div className="hidden md:flex flex-1 items-center justify-center text-surface-400 bg-surface-50/30">
                 <div className="text-center">
-                  <MessageSquare className="w-16 h-16 mx-auto mb-3 opacity-30" />
+                  <MessageSquare className="w-16 h-16 mx-auto mb-3 opacity-20" />
                   <p className="text-sm">Select a conversation to view messages</p>
                 </div>
               </div>
@@ -293,9 +321,9 @@ export default function MessagesSection() {
                 {filteredAttachments.map(att => {
                   const Icon = fileIcon(att.file_type);
                   return (
-                    <div key={att.id} className="border border-surface-100 rounded-lg p-3 hover:shadow-sm transition-shadow group">
+                    <div key={att.id} className="border border-surface-100 rounded-xl p-3 hover:shadow-sm transition-shadow group bg-white">
                       <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-surface-100 flex items-center justify-center flex-shrink-0">
+                        <div className="w-10 h-10 rounded-lg bg-surface-50 flex items-center justify-center flex-shrink-0">
                           <Icon className="w-5 h-5 text-surface-500" />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -330,7 +358,7 @@ export default function MessagesSection() {
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') handleSearch(); }}
-                  className="w-full pl-10 pr-4 py-2.5 border border-surface-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2.5 border border-surface-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent bg-white"
                 />
                 {searchQuery && (
                   <button onClick={() => { setSearchQuery(''); setSearchResults([]); }}
@@ -351,15 +379,15 @@ export default function MessagesSection() {
               ) : (
                 <div className="space-y-2 pb-6">
                   {searchResults.map(msg => (
-                    <div key={msg.id} className="border border-surface-100 rounded-lg p-3 hover:bg-surface-50 transition-colors">
+                    <div key={msg.id} className="border border-surface-100 rounded-xl p-3.5 hover:bg-surface-50 transition-colors bg-white">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-medium text-brand-600">{formatPhone(msg.sender)}</span>
-                        <span className="text-xs text-surface-400 flex items-center gap-1">
+                        <span className="text-xs font-medium text-brand-600">{getDisplayName(msg.sender, msg.sender)}</span>
+                        <span className="text-[11px] text-surface-400 flex items-center gap-1">
                           <Clock className="w-3 h-3" />
                           {timeAgo(msg.created_at)}
                         </span>
                       </div>
-                      <p className="text-sm text-surface-800">{msg.content}</p>
+                      <p className="text-sm text-surface-800 leading-relaxed">{msg.content}</p>
                     </div>
                   ))}
                 </div>

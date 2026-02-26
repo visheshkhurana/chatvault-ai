@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { withAuth, apiSuccess, apiError } from '@/lib/api-utils';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getDisplayName, isChatTitlePhoneNumber } from '@/lib/format-contact';
 
 // ============================================================
 // Suggestions API — Personalized chat suggestion chips
@@ -14,18 +15,28 @@ export const GET = withAuth(async (req: NextRequest, { user }) => {
         // 1. Recent chats → "Summarize chat with [title]"
         const { data: recentChats } = await supabaseAdmin
             .from('chats')
-            .select('id, title')
+            .select('id, title, name, is_group')
             .eq('user_id', user.id)
             .order('last_message_at', { ascending: false })
-            .limit(3);
+            .limit(5);
 
         if (recentChats && recentChats.length > 0) {
-            for (const chat of recentChats.slice(0, 2)) {
-                if (chat.title && chat.title.length < 30) {
+            let chatSuggestionCount = 0;
+            for (const chat of recentChats) {
+                if (chatSuggestionCount >= 2) break;
+
+                const chatName = chat.title || chat.name || '';
+
+                // Skip chats that are just phone numbers — show friendly names only
+                if (isChatTitlePhoneNumber(chatName)) continue;
+
+                const displayName = getDisplayName(chatName, null);
+                if (displayName && displayName !== 'Unknown' && displayName.length < 25) {
                     suggestions.push({
-                        text: `Summarize chat with ${chat.title}`,
+                        text: `Summarize chat with ${displayName}`,
                         icon: '📝',
                     });
+                    chatSuggestionCount++;
                 }
             }
         }
