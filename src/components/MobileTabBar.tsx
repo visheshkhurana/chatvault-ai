@@ -1,6 +1,6 @@
 'use client';
 
-import { Home, MessageSquare, CheckCircle, Users, Bot } from 'lucide-react';
+import { Bot, MessageSquare, CheckCircle, Users } from 'lucide-react';
 import { TabType } from '@/types/dashboard';
 
 interface MobileTabBarProps {
@@ -8,35 +8,34 @@ interface MobileTabBarProps {
   onTabChange: (tab: TabType) => void;
 }
 
-const tabs: { key: TabType; label: string; icon: typeof Home }[] = [
-  { key: 'home', label: 'Home', icon: Home },
+const tabs: { key: TabType; label: string; icon: typeof Bot }[] = [
+  { key: 'home', label: 'Home', icon: Bot },
   { key: 'messages', label: 'Messages', icon: MessageSquare },
   { key: 'actions', label: 'Actions', icon: CheckCircle },
   { key: 'people', label: 'People', icon: Users },
-  { key: 'assistant', label: 'AI', icon: Bot },
 ];
 
 export default function MobileTabBar({ activeTab, onTabChange }: MobileTabBarProps) {
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 safe-area-bottom">
-      <div className="flex items-center justify-around px-2 py-1">
+    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-surface-200 z-50 safe-area-bottom">
+      <div className="flex items-center justify-around px-2 py-1.5">
         {tabs.map(tab => {
           const isActive = activeTab === tab.key;
           return (
             <button
               key={tab.key}
               onClick={() => onTabChange(tab.key)}
-              className={'flex flex-col items-center gap-0.5 py-2 px-3 rounded-lg transition-colors min-w-0 '
+              className={'relative flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-lg transition-all min-w-0 '
                 + (isActive
-                  ? 'text-emerald-600'
-                  : 'text-gray-400 active:text-gray-600')}
+                  ? 'text-brand-600'
+                  : 'text-surface-400 active:text-surface-600')}
             >
-              <tab.icon className={'transition-all ' + (isActive ? 'w-5 h-5' : 'w-5 h-5')} />
-              <span className={'text-[10px] font-medium truncate ' + (isActive ? 'text-emerald-600' : 'text-gray-400')}>
+              <tab.icon className={'w-5 h-5 transition-all ' + (isActive ? 'scale-105' : '')} />
+              <span className={'text-[10px] font-medium truncate ' + (isActive ? 'text-brand-600' : 'text-surface-400')}>
                 {tab.label}
               </span>
               {isActive && (
-                <div className="absolute bottom-0 w-8 h-0.5 bg-emerald-500 rounded-full" />
+                <div className="absolute -bottom-1.5 w-6 h-0.5 bg-brand-500 rounded-full" />
               )}
             </button>
           );

@@ -42,7 +42,7 @@ export function SearchSourcesCard({ sources }: { sources: MessageSource[] }) {
 
     return (
         <div className="mt-2">
-            <div className="text-xs font-medium text-gray-500 mb-1.5 flex items-center gap-1">
+            <div className="text-xs font-medium text-surface-500 mb-1.5 flex items-center gap-1">
                 <FileText className="w-3 h-3" />
                 Sources ({sources.length})
             </div>
@@ -50,34 +50,34 @@ export function SearchSourcesCard({ sources }: { sources: MessageSource[] }) {
                 {displaySources.map((source, i) => (
                     <div
                         key={i}
-                        className="px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg text-xs"
+                        className="px-3 py-2 bg-surface-50 border border-surface-100 rounded-lg text-xs"
                     >
                         <div className="flex items-center gap-2 mb-0.5">
                             {source.senderName && (
-                                <span className="font-medium text-gray-800 flex items-center gap-1">
-                                    <User className="w-3 h-3 text-gray-400" />
+                                <span className="font-medium text-surface-800 flex items-center gap-1">
+                                    <User className="w-3 h-3 text-surface-400" />
                                     {source.senderName}
                                 </span>
                             )}
                             {source.chatTitle && (
-                                <span className="text-gray-400">
+                                <span className="text-surface-400">
                                     in {source.chatTitle}
                                 </span>
                             )}
                             {source.timestamp && (
-                                <span className="text-gray-400 ml-auto text-[10px]">
+                                <span className="text-surface-400 ml-auto text-[10px]">
                                     {formatDate(source.timestamp)}
                                 </span>
                             )}
                         </div>
-                        <p className="text-gray-600 line-clamp-2">{source.text}</p>
+                        <p className="text-surface-600 line-clamp-2">{source.text}</p>
                     </div>
                 ))}
             </div>
             {sources.length > 3 && (
                 <button
                     onClick={() => setExpanded(!expanded)}
-                    className="mt-1.5 text-xs text-green-600 hover:text-green-700 flex items-center gap-1"
+                    className="mt-1.5 text-xs text-brand-600 hover:text-brand-700 flex items-center gap-1"
                 >
                     {expanded ? (
                         <>Show less <ChevronUp className="w-3 h-3" /></>
@@ -100,7 +100,7 @@ export function CommitmentsCard({ commitments }: { commitments: Commitment[] }) 
 
     return (
         <div className="mt-2">
-            <div className="text-xs font-medium text-gray-500 mb-1.5 flex items-center gap-1">
+            <div className="text-xs font-medium text-surface-500 mb-1.5 flex items-center gap-1">
                 <CheckSquare className="w-3 h-3" />
                 Commitments ({commitments.length})
             </div>
@@ -132,18 +132,18 @@ function CommitmentItem({ commitment, isOverdue }: { commitment: Commitment; isO
     const priorityClass = priorityColors[commitment.priority || 'medium'] || priorityColors.medium;
 
     return (
-        <div className={`flex items-start gap-2 py-1 text-xs ${isOverdue ? 'text-red-700' : 'text-gray-700'}`}>
+        <div className={`flex items-start gap-2 py-1 text-xs ${isOverdue ? 'text-red-700' : 'text-surface-700'}`}>
             <div className="flex-1 min-w-0">
                 <span className="font-medium">{commitment.title}</span>
                 <div className="flex items-center gap-2 mt-0.5">
                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${priorityClass}`}>
                         {commitment.priority || 'medium'}
                     </span>
-                    <span className="text-gray-400 text-[10px]">
+                    <span className="text-surface-400 text-[10px]">
                         {commitment.committed_by === 'me' ? 'By you' : commitment.committed_by === 'them' ? 'By them' : 'Mutual'}
                     </span>
                     {commitment.due_date && (
-                        <span className="text-gray-400 text-[10px] flex items-center gap-0.5">
+                        <span className="text-surface-400 text-[10px] flex items-center gap-0.5">
                             <Clock className="w-2.5 h-2.5" />
                             {formatDate(commitment.due_date)}
                         </span>
@@ -159,7 +159,7 @@ function CommitmentItem({ commitment, isOverdue }: { commitment: Commitment; isO
 export function SummaryCard({ summary }: { summary: SummaryData }) {
     return (
         <div className="mt-2">
-            <div className="text-xs font-medium text-gray-500 mb-1.5 flex items-center gap-1">
+            <div className="text-xs font-medium text-surface-500 mb-1.5 flex items-center gap-1">
                 <MessageSquare className="w-3 h-3" />
                 Conversation Summary
             </div>
@@ -175,11 +175,11 @@ export function SummaryCard({ summary }: { summary: SummaryData }) {
             )}
 
             {summary.actionItems.length > 0 && (
-                <div className="mt-2 px-3 py-2 bg-green-50 border border-green-100 rounded-lg">
-                    <div className="text-[10px] font-medium text-green-700 mb-1">Action Items</div>
+                <div className="mt-2 px-3 py-2 bg-brand-50 border border-brand-100 rounded-lg">
+                    <div className="text-[10px] font-medium text-brand-700 mb-1">Action Items</div>
                     {summary.actionItems.map((item, i) => (
-                        <div key={i} className="flex items-start gap-1.5 text-xs text-green-800 py-0.5">
-                            <span className="text-green-500 mt-0.5">•</span>
+                        <div key={i} className="flex items-start gap-1.5 text-xs text-brand-800 py-0.5">
+                            <span className="text-brand-500 mt-0.5">•</span>
                             <span>{item}</span>
                         </div>
                     ))}
@@ -195,8 +195,8 @@ export function IntentBadge({ intent }: { intent: string }) {
     const intentConfig: Record<string, { icon: string; label: string; color: string }> = {
         retrieval: { icon: '🔍', label: 'Search', color: 'bg-blue-50 text-blue-700' },
         question: { icon: '🔍', label: 'Search', color: 'bg-blue-50 text-blue-700' },
-        commitment: { icon: '✅', label: 'Commitments', color: 'bg-green-50 text-green-700' },
-        casual: { icon: '💬', label: 'Chat', color: 'bg-gray-100 text-gray-600' },
+        commitment: { icon: '✅', label: 'Commitments', color: 'bg-brand-50 text-brand-700' },
+        casual: { icon: '💬', label: 'Chat', color: 'bg-surface-100 text-surface-600' },
         command: { icon: '⚡', label: 'Command', color: 'bg-purple-50 text-purple-700' },
         summary: { icon: '📝', label: 'Summary', color: 'bg-yellow-50 text-yellow-700' },
     };

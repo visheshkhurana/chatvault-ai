@@ -36,13 +36,13 @@ export default function SentimentSection() {
     }
 
     const sentimentIcon = (s: string) => {
-        if (s === 'positive') return <Smile className="w-5 h-5 text-green-500" />;
+        if (s === 'positive') return <Smile className="w-5 h-5 text-brand-500" />;
         if (s === 'negative') return <Frown className="w-5 h-5 text-red-500" />;
         return <Meh className="w-5 h-5 text-yellow-500" />;
     };
 
     const sentimentColor = (s: string) => {
-        if (s === 'positive') return 'text-green-600 bg-green-50';
+        if (s === 'positive') return 'text-brand-600 bg-brand-50';
         if (s === 'negative') return 'text-red-600 bg-red-50';
         return 'text-yellow-600 bg-yellow-50';
     };
@@ -54,22 +54,22 @@ export default function SentimentSection() {
                     <Heart className="w-5 h-5 text-pink-600" />
                 </div>
                 <div>
-                    <h2 className="text-lg font-bold text-gray-900">Mood & Sentiment</h2>
-                    <p className="text-sm text-gray-500">Analyze the emotional tone of your conversations</p>
+                    <h2 className="text-lg font-bold text-surface-900">Mood & Sentiment</h2>
+                    <p className="text-sm text-surface-500">Analyze the emotional tone of your conversations</p>
                 </div>
             </div>
 
             <div className="flex gap-3 mb-6">
-                <select value={chatId} onChange={(e: any) => setChatId(e.target.value)} className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500">
+                <select value={chatId} onChange={(e: any) => setChatId(e.target.value)} className="flex-1 px-3 py-2.5 border border-surface-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500">
                     <option value="">Select a chat...</option>
                     {chats.map((c: any) => <option key={c.id} value={c.id}>{c.title}</option>)}
                 </select>
-                <div className="flex bg-gray-100 rounded-xl p-0.5">
+                <div className="flex bg-surface-100 rounded-xl p-0.5">
                     {['7d', '30d', '90d'].map((p) => (
-                        <button key={p} onClick={() => setPeriod(p)} className={`px-3 py-2 rounded-lg text-xs font-medium ${period === p ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}>{p}</button>
+                        <button key={p} onClick={() => setPeriod(p)} className={`px-3 py-2 rounded-lg text-xs font-medium ${period === p ? 'bg-white shadow-sm text-surface-900' : 'text-surface-500'}`}>{p}</button>
                     ))}
                 </div>
-                <button onClick={analyzeSentiment} disabled={loading || !chatId} className="px-5 py-2.5 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 disabled:opacity-50 flex items-center gap-2">
+                <button onClick={analyzeSentiment} disabled={loading || !chatId} className="px-5 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 disabled:opacity-50 flex items-center gap-2">
                     {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                     Analyze
                 </button>
@@ -96,16 +96,16 @@ export default function SentimentSection() {
 
                     {/* Mood Timeline */}
                     {result.moodTimeline && result.moodTimeline.length > 0 && (
-                        <div className="bg-white border border-gray-200 rounded-xl p-4">
-                            <h3 className="font-semibold text-gray-900 mb-3">Mood Timeline</h3>
+                        <div className="bg-white border border-surface-200 rounded-xl p-4">
+                            <h3 className="font-semibold text-surface-900 mb-3">Mood Timeline</h3>
                             <div className="flex items-end gap-1 h-32">
                                 {result.moodTimeline.map((t: any, i: number) => {
                                     const height = ((t.score + 1) / 2) * 100;
-                                    const color = t.sentiment === 'positive' ? 'bg-green-400' : t.sentiment === 'negative' ? 'bg-red-400' : 'bg-yellow-400';
+                                    const color = t.sentiment === 'positive' ? 'bg-brand-400' : t.sentiment === 'negative' ? 'bg-red-400' : 'bg-yellow-400';
                                     return (
                                         <div key={i} className="flex-1 flex flex-col items-center gap-1">
                                             <div className={`w-full rounded-t-sm ${color}`} style={{ height: `${Math.max(height, 5)}%` }} title={`${t.date}: ${t.sentiment} (${t.score})`} />
-                                            <span className="text-[9px] text-gray-400 rotate-[-45deg]">{t.date?.substring(5)}</span>
+                                            <span className="text-[9px] text-surface-400 rotate-[-45deg]">{t.date?.substring(5)}</span>
                                         </div>
                                     );
                                 })}
@@ -115,8 +115,8 @@ export default function SentimentSection() {
 
                     {/* Topics */}
                     {result.topics && result.topics.length > 0 && (
-                        <div className="bg-white border border-gray-200 rounded-xl p-4">
-                            <h3 className="font-semibold text-gray-900 mb-3">Topic Sentiments</h3>
+                        <div className="bg-white border border-surface-200 rounded-xl p-4">
+                            <h3 className="font-semibold text-surface-900 mb-3">Topic Sentiments</h3>
                             <div className="flex flex-wrap gap-2">
                                 {result.topics.map((t: any, i: number) => (
                                     <div key={i} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${sentimentColor(t.sentiment)}`}>
@@ -132,9 +132,9 @@ export default function SentimentSection() {
                     {result.highlights && (
                         <div className="grid grid-cols-2 gap-4">
                             {result.highlights.mostPositive && (
-                                <div className="bg-green-50 border border-green-100 rounded-xl p-4">
-                                    <div className="flex items-center gap-2 mb-2"><TrendingUp className="w-4 h-4 text-green-600" /><span className="text-sm font-semibold text-green-700">Most Positive</span></div>
-                                    <p className="text-sm text-green-800">{result.highlights.mostPositive}</p>
+                                <div className="bg-brand-50 border border-brand-100 rounded-xl p-4">
+                                    <div className="flex items-center gap-2 mb-2"><TrendingUp className="w-4 h-4 text-brand-600" /><span className="text-sm font-semibold text-brand-700">Most Positive</span></div>
+                                    <p className="text-sm text-brand-800">{result.highlights.mostPositive}</p>
                                 </div>
                             )}
                             {result.highlights.mostNegative && (

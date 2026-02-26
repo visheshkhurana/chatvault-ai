@@ -12,7 +12,7 @@ const FILE_TYPE_COLORS: Record<string, string> = {
   image: 'bg-blue-50 text-blue-600',
   video: 'bg-purple-50 text-purple-600',
   audio: 'bg-orange-50 text-orange-600',
-  document: 'bg-green-50 text-green-600',
+  document: 'bg-brand-50 text-brand-600',
   sticker: 'bg-pink-50 text-pink-600',
 };
 
@@ -89,7 +89,7 @@ export default function AttachmentsSection() {
     if (!preview) return null;
     const { attachment: att, signedUrl, loading: mediaLoading, error } = preview;
     const Icon = FILE_TYPE_ICONS[att.file_type] || FileText;
-    const colorClass = FILE_TYPE_COLORS[att.file_type] || 'bg-gray-50 text-gray-600';
+    const colorClass = FILE_TYPE_COLORS[att.file_type] || 'bg-surface-50 text-surface-600';
     const bgColor = colorClass.split(' ')[0];
     const txtColor = colorClass.split(' ')[1];
 
@@ -97,30 +97,30 @@ export default function AttachmentsSection() {
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setPreview(null)}>
         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
         <div className="relative bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-surface-100">
             <div className="flex items-center gap-3 min-w-0">
               <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${bgColor}`}>
                 <Icon className={`w-5 h-5 ${txtColor}`} />
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-gray-900 truncate">{att.file_name}</p>
-                <p className="text-xs text-gray-500">
+                <p className="text-sm font-semibold text-surface-900 truncate">{att.file_name}</p>
+                <p className="text-xs text-surface-500">
                   {att.file_type} {att.mime_type && att.mime_type !== 'application/octet-stream' ? `\u2022 ${att.mime_type}` : ''}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               {signedUrl && (
-                <a href={signedUrl} target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors" title="Open in new tab">
+                <a href={signedUrl} target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg hover:bg-surface-100 text-surface-500 hover:text-surface-700 transition-colors" title="Open in new tab">
                   <ExternalLink className="w-5 h-5" />
                 </a>
               )}
               {signedUrl && (
-                <a href={signedUrl} download={att.file_name} className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors" title="Download">
+                <a href={signedUrl} download={att.file_name} className="p-2 rounded-lg hover:bg-surface-100 text-surface-500 hover:text-surface-700 transition-colors" title="Download">
                   <Download className="w-5 h-5" />
                 </a>
               )}
-              <button onClick={() => setPreview(null)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors">
+              <button onClick={() => setPreview(null)} className="p-2 rounded-lg hover:bg-surface-100 text-surface-500 hover:text-surface-700 transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -128,8 +128,8 @@ export default function AttachmentsSection() {
           <div className="p-6">
             {mediaLoading ? (
               <div className="flex flex-col items-center justify-center py-16">
-                <div className="w-10 h-10 border-3 border-green-200 border-t-green-600 rounded-full animate-spin mb-4" />
-                <p className="text-sm text-gray-500">Loading media...</p>
+                <div className="w-10 h-10 border-3 border-brand-200 border-t-brand-600 rounded-full animate-spin mb-4" />
+                <p className="text-sm text-surface-500">Loading media...</p>
               </div>
             ) : error ? (
               <div className="flex flex-col items-center justify-center py-12 px-4">
@@ -167,8 +167,8 @@ export default function AttachmentsSection() {
                     <div className={`w-20 h-20 rounded-2xl flex items-center justify-center mb-4 ${bgColor}`}>
                       <FileText className={`w-10 h-10 ${txtColor}`} />
                     </div>
-                    <p className="text-sm text-gray-600 mb-4">This file type cannot be previewed in the browser.</p>
-                    <a href={signedUrl} download={att.file_name} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center gap-2">
+                    <p className="text-sm text-surface-600 mb-4">This file type cannot be previewed in the browser.</p>
+                    <a href={signedUrl} download={att.file_name} className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors flex items-center gap-2">
                       <Download className="w-4 h-4" />
                       Download File
                     </a>
@@ -177,7 +177,7 @@ export default function AttachmentsSection() {
               </div>
             ) : null}
           </div>
-          <div className="px-6 py-3 border-t border-gray-100 bg-gray-50 flex items-center gap-4 text-xs text-gray-500">
+          <div className="px-6 py-3 border-t border-surface-100 bg-surface-50 flex items-center gap-4 text-xs text-surface-500">
             {att.messages?.sender_name && (
               <span className="flex items-center gap-1">
                 <User className="w-3 h-3" />
@@ -203,13 +203,13 @@ export default function AttachmentsSection() {
     <div>
       <div className="mb-4">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
           <input
             type="text"
             placeholder="Search files by name, sender, or type..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-surface-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
           />
         </div>
       </div>
@@ -219,11 +219,11 @@ export default function AttachmentsSection() {
           <button
             key={type}
             onClick={() => setFilter(type)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium capitalize flex items-center gap-1.5 ${filter === type ? 'bg-green-600 text-white' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'}`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium capitalize flex items-center gap-1.5 ${filter === type ? 'bg-brand-600 text-white' : 'bg-white text-surface-700 border border-surface-200 hover:bg-surface-50'}`}
           >
             {type}
             {counts[type] !== undefined && (
-              <span className={`text-xs px-1.5 py-0.5 rounded-full ${filter === type ? 'bg-green-700 text-green-100' : 'bg-gray-100 text-gray-500'}`}>
+              <span className={`text-xs px-1.5 py-0.5 rounded-full ${filter === type ? 'bg-brand-700 text-brand-100' : 'bg-surface-100 text-surface-500'}`}>
                 {counts[type]}
               </span>
             )}
@@ -232,23 +232,23 @@ export default function AttachmentsSection() {
       </div>
 
       {!loading && (
-        <p className="text-xs text-gray-400 mb-3">
+        <p className="text-xs text-surface-400 mb-3">
           Showing {filtered.length} file{filtered.length !== 1 ? 's' : ''}
           {searchQuery && ` matching "${searchQuery}"`}
         </p>
       )}
 
       {loading ? (
-        <div className="text-center py-12 text-gray-400">Loading files...</div>
+        <div className="text-center py-12 text-surface-400">Loading files...</div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-12 text-gray-400">
+        <div className="text-center py-12 text-surface-400">
           {searchQuery ? `No files found matching "${searchQuery}"` : 'No files in this category'}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {filtered.map((att: any) => {
             const Icon = FILE_TYPE_ICONS[att.file_type] || FileText;
-            const colorClass = FILE_TYPE_COLORS[att.file_type] || 'bg-gray-50 text-gray-600';
+            const colorClass = FILE_TYPE_COLORS[att.file_type] || 'bg-surface-50 text-surface-600';
             const hasFile = att.storage_key !== null && att.storage_key !== undefined;
             const bgColor = colorClass.split(' ')[0];
             const txtColor = colorClass.split(' ')[1];
@@ -257,25 +257,25 @@ export default function AttachmentsSection() {
               <div
                 key={att.id}
                 onClick={() => openPreview(att)}
-                className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md hover:border-green-200 transition-all cursor-pointer group relative"
+                className="bg-white rounded-xl border border-surface-200 p-4 hover:shadow-md hover:border-brand-200 transition-all cursor-pointer group relative"
               >
                 <div className={`w-full h-28 rounded-lg mb-3 flex items-center justify-center relative ${bgColor}`}>
                   <Icon className={`w-10 h-10 ${txtColor}`} />
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-lg transition-all flex items-center justify-center">
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 rounded-full p-2 shadow-sm">
                       {att.file_type === 'video' || att.file_type === 'audio' ? (
-                        <Play className="w-5 h-5 text-gray-700" />
+                        <Play className="w-5 h-5 text-surface-700" />
                       ) : (
-                        <Eye className="w-5 h-5 text-gray-700" />
+                        <Eye className="w-5 h-5 text-surface-700" />
                       )}
                     </div>
                   </div>
                 </div>
-                <p className="text-sm font-medium text-gray-900 truncate" title={att.file_name}>
+                <p className="text-sm font-medium text-surface-900 truncate" title={att.file_name}>
                   {att.file_name}
                 </p>
                 <div className="mt-2 space-y-1">
-                  <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <div className="flex items-center gap-1.5 text-xs text-surface-500">
                     <span className={`inline-block px-1.5 py-0.5 rounded text-xs font-medium capitalize ${colorClass}`}>
                       {att.file_type}
                     </span>
@@ -283,20 +283,20 @@ export default function AttachmentsSection() {
                       <span className="text-xs text-amber-500" title="Media not stored">•</span>
                     )}
                     {att.mime_type && att.mime_type !== 'application/octet-stream' && (
-                      <span className="text-gray-300">|</span>
+                      <span className="text-surface-300">|</span>
                     )}
                     {att.mime_type && att.mime_type !== 'application/octet-stream' && (
                       <span className="truncate">{att.mime_type.split('/')[1]}</span>
                     )}
                   </div>
                   {att.messages?.sender_name && (
-                    <div className="flex items-center gap-1 text-xs text-gray-400">
+                    <div className="flex items-center gap-1 text-xs text-surface-400">
                       <User className="w-3 h-3" />
                       <span className="truncate">{att.messages.sender_name}</span>
                     </div>
                   )}
                   {att.created_at && (
-                    <div className="flex items-center gap-1 text-xs text-gray-400">
+                    <div className="flex items-center gap-1 text-xs text-surface-400">
                       <Calendar className="w-3 h-3" />
                       <span>{formatDate(att.created_at)}</span>
                     </div>

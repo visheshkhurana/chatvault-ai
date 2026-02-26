@@ -167,7 +167,7 @@ export default function SettingsSection() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-6 h-6 text-green-600 animate-spin" />
+        <Loader2 className="w-6 h-6 text-brand-600 animate-spin" />
       </div>
     );
   }
@@ -175,37 +175,37 @@ export default function SettingsSection() {
   return (
     <div className="h-full overflow-y-auto">
       <div className="space-y-6 max-w-2xl p-6">
-        <h2 className="text-xl font-bold text-gray-900">Settings</h2>
+        <h2 className="text-xl font-bold text-surface-900">Settings</h2>
 
         {/* WhatsApp Connection Section */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Smartphone className="w-5 h-5 text-green-600" />
+        <div className="bg-white rounded-xl border border-surface-200 p-6">
+          <h3 className="font-semibold text-surface-900 mb-4 flex items-center gap-2">
+            <Smartphone className="w-5 h-5 text-brand-600" />
             WhatsApp Connection
           </h3>
 
           {waLoading ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 text-green-600 animate-spin" />
-              <span className="ml-2 text-sm text-gray-500">Checking connection...</span>
+              <Loader2 className="w-6 h-6 text-brand-600 animate-spin" />
+              <span className="ml-2 text-sm text-surface-500">Checking connection...</span>
             </div>
           ) : waStatus.connected ? (
             <div className="space-y-4">
-              <div className="flex items-center gap-3 p-4 bg-green-50 rounded-lg border border-green-200">
-                <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
+              <div className="flex items-center gap-3 p-4 bg-brand-50 rounded-lg border border-brand-200">
+                <CheckCircle2 className="w-8 h-8 text-brand-600 flex-shrink-0" />
                 <div>
-                  <p className="font-medium text-green-800">WhatsApp Connected</p>
-                  <p className="text-sm text-green-600">
+                  <p className="font-medium text-brand-600">WhatsApp Connected</p>
+                  <p className="text-sm text-brand-600">
                     {waStatus.phone ? ('Phone: ' + waStatus.phone) : 'Bridge is active'}
                     {waStatus.name ? (' \u2022 ' + waStatus.name) : ''}
                   </p>
                 </div>
                 <div className="ml-auto flex items-center gap-1">
-                  <Wifi className="w-4 h-4 text-green-600" />
+                  <Wifi className="w-4 h-4 text-brand-600" />
                 </div>
               </div>
               {waStatus.sync && (
-                <div className="text-xs text-gray-500 space-y-1">
+                <div className="text-xs text-surface-500 space-y-1">
                   <p>Messages synced: {waStatus.sync.messages || 0}</p>
                   <p>Chats: {waStatus.sync.chats || 0} \u2022 Contacts: {waStatus.sync.contacts || 0}</p>
                   {waStatus.sync.inProgress && (
@@ -229,29 +229,29 @@ export default function SettingsSection() {
               {!showQR ? (
                 <button
                   onClick={() => setShowQR(true)}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
                 >
                   <QrCode className="w-5 h-5" />
                   Connect WhatsApp
                 </button>
               ) : (
                 <div className="space-y-3">
-                  <div className="bg-gray-50 rounded-lg p-4 text-center">
-                    <p className="text-sm text-gray-600 mb-3">
+                  <div className="bg-surface-50 rounded-lg p-4 text-center">
+                    <p className="text-sm text-surface-600 mb-3">
                       Open WhatsApp {'>'} Linked Devices {'>'} Link a Device
                     </p>
                     <div className="flex justify-center">
                       <iframe
                         src={BRIDGE_URL + '/qr?embed=1'}
-                        className="w-[280px] h-[280px] rounded-lg border-2 border-green-200"
+                        className="w-[280px] h-[280px] rounded-lg border-2 border-brand-200"
                         title="WhatsApp QR Code"
                       />
                     </div>
-                    <p className="text-xs text-gray-400 mt-3">QR code refreshes automatically</p>
+                    <p className="text-xs text-surface-400 mt-3">QR code refreshes automatically</p>
                   </div>
                   <button
                     onClick={() => setShowQR(false)}
-                    className="w-full px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+                    className="w-full px-4 py-2 text-sm text-surface-600 hover:text-surface-800 transition-colors"
                   >
                     Cancel
                   </button>
@@ -264,40 +264,40 @@ export default function SettingsSection() {
         {/* Profile Section */}
         {settings && (
           <>
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <Users className="w-5 h-5 text-green-600" />
+            <div className="bg-white rounded-xl border border-surface-200 p-6">
+              <h3 className="font-semibold text-surface-900 mb-4 flex items-center gap-2">
+                <Users className="w-5 h-5 text-brand-600" />
                 Profile
               </h3>
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm text-gray-600">Display Name</label>
+                  <label className="text-sm text-surface-600">Display Name</label>
                   <input
                     type="text"
                     value={settings.display_name}
                     onChange={(e: any) => setSettings({ ...settings, display_name: e.target.value })}
                     onBlur={() => saveSettings({ display_name: settings.display_name })}
-                    className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full mt-1 px-3 py-2 rounded-lg border border-surface-200 text-surface-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-gray-600">Email</label>
+                  <label className="text-sm text-surface-600">Email</label>
                   <input
                     type="email"
                     value={settings.email}
                     disabled
-                    className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 text-gray-600 bg-gray-50"
+                    className="w-full mt-1 px-3 py-2 rounded-lg border border-surface-200 text-surface-600 bg-surface-50"
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-gray-600">Timezone</label>
+                  <label className="text-sm text-surface-600">Timezone</label>
                   <select
                     value={settings.timezone}
                     onChange={(e: any) => {
                       setSettings({ ...settings, timezone: e.target.value });
                       saveSettings({ timezone: e.target.value });
                     }}
-                    className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full mt-1 px-3 py-2 rounded-lg border border-surface-200 text-surface-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
                   >
                     <option>UTC</option>
                     <option>US/Eastern</option>
@@ -315,9 +315,9 @@ export default function SettingsSection() {
             </div>
 
             {/* Notifications */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <Bell className="w-5 h-5 text-green-600" />
+            <div className="bg-white rounded-xl border border-surface-200 p-6">
+              <h3 className="font-semibold text-surface-900 mb-4 flex items-center gap-2">
+                <Bell className="w-5 h-5 text-brand-600" />
                 Notifications
               </h3>
               <div className="space-y-4">
@@ -334,14 +334,14 @@ export default function SettingsSection() {
                   title: 'Commitment Alerts',
                   desc: 'Get alerted when commitments are due',
                 }].map((item, idx) => (
-                  <div key={item.key} className={'flex items-center justify-between' + (idx > 0 ? ' pt-2 border-t border-gray-100' : '')}>
+                  <div key={item.key} className={'flex items-center justify-between' + (idx > 0 ? ' pt-2 border-t border-surface-100' : '')}>
                     <div>
-                      <p className="text-gray-900 font-medium">{item.title}</p>
-                      <p className="text-sm text-gray-600">{item.desc}</p>
+                      <p className="text-surface-900 font-medium">{item.title}</p>
+                      <p className="text-sm text-surface-600">{item.desc}</p>
                     </div>
                     <button
                       onClick={() => saveSettings({ [item.key]: !settings[item.key] })}
-                      className={'px-3 py-1 rounded-lg text-sm font-medium transition-colors ' + (settings[item.key] ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700')}
+                      className={'px-3 py-1 rounded-lg text-sm font-medium transition-colors ' + (settings[item.key] ? 'bg-brand-100 text-brand-700' : 'bg-surface-100 text-surface-700')}
                     >
                       {settings[item.key] ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
                     </button>
@@ -351,18 +351,18 @@ export default function SettingsSection() {
             </div>
 
             {/* Privacy */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <Shield className="w-5 h-5 text-green-600" />
+            <div className="bg-white rounded-xl border border-surface-200 p-6">
+              <h3 className="font-semibold text-surface-900 mb-4 flex items-center gap-2">
+                <Shield className="w-5 h-5 text-brand-600" />
                 Privacy
               </h3>
               <div className="space-y-4">
                 <div>
-                  <p className="text-gray-900 font-medium mb-2">Privacy Zones</p>
-                  <p className="text-sm text-gray-600 mb-3">Messages containing these keywords will not be indexed</p>
+                  <p className="text-surface-900 font-medium mb-2">Privacy Zones</p>
+                  <p className="text-sm text-surface-600 mb-3">Messages containing these keywords will not be indexed</p>
                   <div className="flex flex-wrap gap-2 mb-3">
                     {(settings.privacy_zones || []).map((zone: any) => (
-                      <div key={zone} className="flex items-center gap-2 bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">
+                      <div key={zone} className="flex items-center gap-2 bg-surface-100 text-surface-700 px-3 py-1 rounded-full text-sm">
                         {zone}
                         <button onClick={() => removePrivacyZone(zone)} className="hover:text-red-600">
                           <X className="w-3 h-3" />
@@ -376,18 +376,18 @@ export default function SettingsSection() {
                       value={newZone}
                       onChange={(e: any) => setNewZone(e.target.value)}
                       placeholder="Add privacy zone keyword..."
-                      className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="flex-1 px-3 py-2 rounded-lg border border-surface-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                     />
-                    <button onClick={addPrivacyZone} className="px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700">
+                    <button onClick={addPrivacyZone} className="px-3 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700">
                       <Plus className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
-                <div className="pt-4 border-t border-gray-100">
+                <div className="pt-4 border-t border-surface-100">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-gray-900 font-medium">Data Retention</p>
-                      <p className="text-sm text-gray-600">Delete old messages after</p>
+                      <p className="text-surface-900 font-medium">Data Retention</p>
+                      <p className="text-sm text-surface-600">Delete old messages after</p>
                     </div>
                     <select
                       value={settings.data_retention_days}
@@ -396,7 +396,7 @@ export default function SettingsSection() {
                         setSettings({ ...settings, data_retention_days: days });
                         saveSettings({ data_retention_days: days });
                       }}
-                      className="px-3 py-2 rounded-lg border border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="px-3 py-2 rounded-lg border border-surface-200 text-surface-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
                     >
                       <option value="30">30 days</option>
                       <option value="90">90 days</option>
@@ -410,15 +410,15 @@ export default function SettingsSection() {
             </div>
 
             {/* Data Export */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <Download className="w-5 h-5 text-green-600" />
+            <div className="bg-white rounded-xl border border-surface-200 p-6">
+              <h3 className="font-semibold text-surface-900 mb-4 flex items-center gap-2">
+                <Download className="w-5 h-5 text-brand-600" />
                 Data Export
               </h3>
-              <p className="text-sm text-gray-600 mb-4">Download all your data as a JSON file</p>
+              <p className="text-sm text-surface-600 mb-4">Download all your data as a JSON file</p>
               <button
                 onClick={handleExport}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 flex items-center gap-2"
+                className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 flex items-center gap-2"
               >
                 <Download className="w-4 h-4" />
                 Export Data

@@ -99,7 +99,7 @@ export default function CommitmentsSection() {
             case 'low':
                 return 'bg-blue-100 text-blue-700';
             default:
-                return 'bg-gray-100 text-gray-700';
+                return 'bg-surface-100 text-surface-700';
         }
     };
 
@@ -121,7 +121,7 @@ export default function CommitmentsSection() {
                 <button
                     onClick={scanForCommitments}
                     disabled={scanning}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+                    className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50 flex items-center gap-2"
                 >
                     {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckSquare className="w-4 h-4" />}
                     Scan for Commitments
@@ -132,7 +132,7 @@ export default function CommitmentsSection() {
                     </div>
                 )}
                 {scanResult && (
-                    <div className="mt-3 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">
+                    <div className="mt-3 p-3 bg-brand-50 border border-brand-200 text-brand-700 rounded-lg text-sm">
                         {scanResult}
                     </div>
                 )}
@@ -143,21 +143,21 @@ export default function CommitmentsSection() {
                 {/* Overdue */}
                 {grouped.overdue.length > 0 && (
                     <div>
-                        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <h3 className="font-semibold text-surface-900 mb-4 flex items-center gap-2">
                             <AlertTriangle className="w-5 h-5 text-red-600" />
                             Overdue ({grouped.overdue.length})
                         </h3>
                         <div className="space-y-3">
                             {grouped.overdue.map((commitment: any) => (
-                                <div key={commitment.id} className="bg-white rounded-xl border border-gray-200 p-4">
+                                <div key={commitment.id} className="bg-white rounded-xl border border-surface-200 p-4">
                                     <div className="flex items-start justify-between mb-2">
                                         <div>
-                                            <h4 className="font-medium text-gray-900">{commitment.title}</h4>
-                                            <p className="text-sm text-gray-600 mt-1">{commitment.description}</p>
+                                            <h4 className="font-medium text-surface-900">{commitment.title}</h4>
+                                            <p className="text-sm text-surface-600 mt-1">{commitment.description}</p>
                                         </div>
                                         <button
                                             onClick={() => markAsDone(commitment.id)}
-                                            className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm font-medium hover:bg-green-200"
+                                            className="px-3 py-1 bg-brand-100 text-brand-700 rounded-lg text-sm font-medium hover:bg-brand-200"
                                         >
                                             Mark Done
                                         </button>
@@ -180,21 +180,21 @@ export default function CommitmentsSection() {
                 {/* Pending */}
                 {grouped.pending.length > 0 && (
                     <div>
-                        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <h3 className="font-semibold text-surface-900 mb-4 flex items-center gap-2">
                             <Clock className="w-5 h-5 text-yellow-600" />
                             Pending ({grouped.pending.length})
                         </h3>
                         <div className="space-y-3">
                             {grouped.pending.map((commitment: any) => (
-                                <div key={commitment.id} className="bg-white rounded-xl border border-gray-200 p-4">
+                                <div key={commitment.id} className="bg-white rounded-xl border border-surface-200 p-4">
                                     <div className="flex items-start justify-between mb-2">
                                         <div>
-                                            <h4 className="font-medium text-gray-900">{commitment.title}</h4>
-                                            <p className="text-sm text-gray-600 mt-1">{commitment.description}</p>
+                                            <h4 className="font-medium text-surface-900">{commitment.title}</h4>
+                                            <p className="text-sm text-surface-600 mt-1">{commitment.description}</p>
                                         </div>
                                         <button
                                             onClick={() => markAsDone(commitment.id)}
-                                            className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm font-medium hover:bg-green-200"
+                                            className="px-3 py-1 bg-brand-100 text-brand-700 rounded-lg text-sm font-medium hover:bg-brand-200"
                                         >
                                             Mark Done
                                         </button>
@@ -204,7 +204,7 @@ export default function CommitmentsSection() {
                                             {getPriorityIcon(commitment.priority)}
                                             {commitment.priority}
                                         </span>
-                                        <span className="text-xs text-gray-500">
+                                        <span className="text-xs text-surface-500">
                                             Due: {new Date(commitment.due_date).toLocaleDateString()}
                                         </span>
                                     </div>
@@ -217,17 +217,17 @@ export default function CommitmentsSection() {
                 {/* Done */}
                 {grouped.done.length > 0 && (
                     <div>
-                        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                            <CheckSquare className="w-5 h-5 text-green-600" />
+                        <h3 className="font-semibold text-surface-900 mb-4 flex items-center gap-2">
+                            <CheckSquare className="w-5 h-5 text-brand-600" />
                             Completed ({grouped.done.length})
                         </h3>
                         <div className="space-y-3">
                             {grouped.done.map((commitment: any) => (
-                                <div key={commitment.id} className="bg-gray-50 rounded-xl border border-gray-200 p-4 opacity-75">
+                                <div key={commitment.id} className="bg-surface-50 rounded-xl border border-surface-200 p-4 opacity-75">
                                     <div className="flex items-start justify-between mb-2">
                                         <div>
-                                            <h4 className="font-medium text-gray-900 line-through">{commitment.title}</h4>
-                                            <p className="text-sm text-gray-600 mt-1">{commitment.description}</p>
+                                            <h4 className="font-medium text-surface-900 line-through">{commitment.title}</h4>
+                                            <p className="text-sm text-surface-600 mt-1">{commitment.description}</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3 mt-3">
@@ -235,7 +235,7 @@ export default function CommitmentsSection() {
                                             {getPriorityIcon(commitment.priority)}
                                             {commitment.priority}
                                         </span>
-                                        <span className="text-xs text-gray-500">
+                                        <span className="text-xs text-surface-500">
                                             Due: {new Date(commitment.due_date).toLocaleDateString()}
                                         </span>
                                     </div>
@@ -246,7 +246,7 @@ export default function CommitmentsSection() {
                 )}
 
                 {Object.values(grouped).every((arr) => arr.length === 0) && (
-                    <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-500">
+                    <div className="bg-white rounded-xl border border-surface-200 p-12 text-center text-surface-500">
                         No commitments found. Click "Scan for Commitments" to find commitments in your messages.
                     </div>
                 )}

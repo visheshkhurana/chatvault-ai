@@ -84,7 +84,7 @@ export default function SummariesSection() {
                         <select
                                     value={selectedChatForSummary}
                                     onChange={(e: any) => setSelectedChatForSummary(e.target.value)}
-                                    className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white"
+                                    className="px-3 py-2 rounded-lg border border-surface-200 text-sm bg-white"
                                   >
                                   <option value="">Select a chat...</option>
                           {chats.map((chat: any) => (
@@ -94,7 +94,7 @@ export default function SummariesSection() {
                         <button
                                     onClick={generateSummary}
                                     disabled={generating || !selectedChatForSummary}
-                                    className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+                                    className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50 flex items-center gap-2"
                                   >
                           {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                                   Generate Summary
@@ -106,26 +106,26 @@ export default function SummariesSection() {
                     </div>
                 )}
                 {genSuccess && (
-                    <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">
+                    <div className="mb-4 p-3 bg-brand-50 border border-brand-200 text-brand-700 rounded-lg text-sm">
                         {genSuccess}
                     </div>
                 )}
 
                 <div className="space-y-4">
                   {summaries.map((summary: any) => (
-                      <div key={summary.id} className="bg-white rounded-xl border border-gray-200 p-6">
+                      <div key={summary.id} className="bg-white rounded-xl border border-surface-200 p-6">
                                   <div className="flex items-center gap-3 mb-3">
-                                                <h3 className="font-semibold text-gray-900">{summary.chats?.title}</h3>
+                                                <h3 className="font-semibold text-surface-900">{summary.chats?.title}</h3>
                                                 <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{summary.summary_type}</span>
-                                                <span className="text-xs text-gray-400">
+                                                <span className="text-xs text-surface-400">
                                                   {new Date(summary.period_start).toLocaleDateString()} - {new Date(summary.period_end).toLocaleDateString()}
                                                 </span>
                                   </div>
-                                  <p className="text-gray-700 text-sm whitespace-pre-wrap">{summary.summary_text}</p>
+                                  <p className="text-surface-700 text-sm whitespace-pre-wrap">{summary.summary_text}</p>
                         {summary.key_topics?.length > 0 && (
                                       <div className="flex flex-wrap gap-2 mt-3">
                                         {summary.key_topics.map((topic: string, i: number) => (
-                                                          <span key={i} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">{topic}</span>
+                                                          <span key={i} className="text-xs bg-surface-100 text-surface-600 px-2 py-1 rounded">{topic}</span>
                                                         ))}
                                       </div>
                                   )}

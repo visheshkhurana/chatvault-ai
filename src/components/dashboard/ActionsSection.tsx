@@ -80,7 +80,7 @@ export default function ActionsSection() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full" />
+        <div className="animate-spin w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -88,8 +88,8 @@ export default function ActionsSection() {
   return (
     <div className="h-full overflow-y-auto">
       <div className="max-w-3xl mx-auto px-6 py-8">
-        <h1 className="text-xl font-semibold text-gray-900 mb-1">Actions</h1>
-        <p className="text-sm text-gray-500 mb-6">Reminders and commitments from your conversations</p>
+        <h1 className="text-xl font-semibold text-surface-900 mb-1">Actions</h1>
+        <p className="text-sm text-surface-500 mb-6">Reminders and commitments from your conversations</p>
 
         {overdueCount > 0 && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 flex items-center gap-2">
@@ -102,7 +102,7 @@ export default function ActionsSection() {
           {['all', 'active', 'overdue', 'done'].map(f => (
             <button key={f} onClick={() => setFilter(f)}
               className={'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors '
-                + (filter === f ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}>
+                + (filter === f ? 'bg-brand-100 text-brand-700' : 'bg-surface-100 text-surface-600 hover:bg-surface-200')}>
               {f.charAt(0).toUpperCase() + f.slice(1)}
             </button>
           ))}
@@ -110,8 +110,8 @@ export default function ActionsSection() {
 
         {filtered.length === 0 ? (
           <div className="text-center py-12">
-            <CheckCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 text-sm">No actions found</p>
+            <CheckCircle className="w-12 h-12 text-surface-300 mx-auto mb-3" />
+            <p className="text-surface-500 text-sm">No actions found</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -122,11 +122,11 @@ export default function ActionsSection() {
               return (
                 <div key={item.id + item.type}
                   className={'border rounded-lg p-4 transition-all '
-                    + (isOverdue ? 'border-red-200 bg-red-50' : isDone ? 'border-gray-100 bg-gray-50 opacity-60' : 'border-gray-100 bg-white hover:shadow-sm')}>
+                    + (isOverdue ? 'border-red-200 bg-red-50' : isDone ? 'border-surface-100 bg-surface-50 opacity-60' : 'border-surface-100 bg-white hover:shadow-sm')}>
                   <div className="flex items-start gap-3">
                     <div className={'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 '
-                      + (isOverdue ? 'bg-red-100' : isDone ? 'bg-green-100' : 'bg-blue-100')}>
-                      {isDone ? <CheckCircle className="w-4 h-4 text-green-600" /> : <Clock className="w-4 h-4 text-blue-600" />}
+                      + (isOverdue ? 'bg-red-100' : isDone ? 'bg-brand-100' : 'bg-blue-100')}>
+                      {isDone ? <CheckCircle className="w-4 h-4 text-brand-600" /> : <Clock className="w-4 h-4 text-blue-600" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
@@ -136,9 +136,9 @@ export default function ActionsSection() {
                         </span>
                         {isOverdue && <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">Overdue</span>}
                       </div>
-                      <p className={'text-sm font-medium ' + (isDone ? 'line-through text-gray-400' : 'text-gray-900')}>{item.title}</p>
-                      {item.description && <p className="text-xs text-gray-500 mt-1">{item.description}</p>}
-                      <p className="text-xs text-gray-400 mt-1">{dueDate ? timeAgo(dueDate) : timeAgo(item.created_at)}</p>
+                      <p className={'text-sm font-medium ' + (isDone ? 'line-through text-surface-400' : 'text-surface-900')}>{item.title}</p>
+                      {item.description && <p className="text-xs text-surface-500 mt-1">{item.description}</p>}
+                      <p className="text-xs text-surface-400 mt-1">{dueDate ? timeAgo(dueDate) : timeAgo(item.created_at)}</p>
                     </div>
                   </div>
                 </div>

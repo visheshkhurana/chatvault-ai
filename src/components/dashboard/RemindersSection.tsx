@@ -98,22 +98,22 @@ export default function RemindersSection() {
                         <Bell className="w-5 h-5 text-blue-600" />
                     </div>
                     <div>
-                        <h2 className="text-lg font-bold text-gray-900">Reminders</h2>
-                        <p className="text-sm text-gray-500">Track follow-ups and deadlines from your conversations</p>
+                        <h2 className="text-lg font-bold text-surface-900">Reminders</h2>
+                        <p className="text-sm text-surface-500">Track follow-ups and deadlines from your conversations</p>
                     </div>
                 </div>
-                <button onClick={() => setShowForm(!showForm)} className="px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 flex items-center gap-2">
+                <button onClick={() => setShowForm(!showForm)} className="px-4 py-2 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 flex items-center gap-2">
                     <Plus className="w-4 h-4" /> New Reminder
                 </button>
             </div>
 
             {showForm && (
-                <div className="bg-white border border-gray-200 rounded-xl p-5 mb-6">
+                <div className="bg-white border border-surface-200 rounded-xl p-5 mb-6">
                     <div className="space-y-3">
-                        <input value={newText} onChange={(e: any) => setNewText(e.target.value)} placeholder="What do you need to remember?" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                        <input value={newText} onChange={(e: any) => setNewText(e.target.value)} placeholder="What do you need to remember?" className="w-full px-3 py-2.5 border border-surface-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
                         <div className="flex gap-3">
-                            <input type="datetime-local" value={newDueAt} onChange={(e: any) => setNewDueAt(e.target.value)} className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
-                            <button onClick={createReminder} className="px-5 py-2.5 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700">Save</button>
+                            <input type="datetime-local" value={newDueAt} onChange={(e: any) => setNewDueAt(e.target.value)} className="flex-1 px-3 py-2.5 border border-surface-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
+                            <button onClick={createReminder} className="px-5 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700">Save</button>
                         </div>
                     </div>
                 </div>
@@ -136,10 +136,10 @@ export default function RemindersSection() {
                         {extracted.map((e: any, i: number) => (
                             <div key={i} className="bg-white rounded-lg p-3 flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm text-gray-800">{e.text}</p>
-                                    <p className="text-xs text-gray-400">{e.suggestedDueAt ? new Date(e.suggestedDueAt).toLocaleDateString() : 'No date'} • {(e.confidence * 100).toFixed(0)}% confidence</p>
+                                    <p className="text-sm text-surface-800">{e.text}</p>
+                                    <p className="text-xs text-surface-400">{e.suggestedDueAt ? new Date(e.suggestedDueAt).toLocaleDateString() : 'No date'} • {(e.confidence * 100).toFixed(0)}% confidence</p>
                                 </div>
-                                <button onClick={() => { setNewText(e.text); setNewDueAt(e.suggestedDueAt?.substring(0, 16) || ''); setShowForm(true); }} className="px-3 py-1 bg-green-600 text-white rounded-lg text-xs hover:bg-green-700">Add</button>
+                                <button onClick={() => { setNewText(e.text); setNewDueAt(e.suggestedDueAt?.substring(0, 16) || ''); setShowForm(true); }} className="px-3 py-1 bg-brand-600 text-white rounded-lg text-xs hover:bg-brand-700">Add</button>
                             </div>
                         ))}
                     </div>
@@ -147,32 +147,32 @@ export default function RemindersSection() {
             </div>
 
             {/* Filter */}
-            <div className="flex gap-1 bg-gray-100 rounded-xl p-0.5 w-fit mb-6">
+            <div className="flex gap-1 bg-surface-100 rounded-xl p-0.5 w-fit mb-6">
                 {['pending', 'overdue', 'done'].map((s) => (
-                    <button key={s} onClick={() => setStatusFilter(s)} className={`px-4 py-2 rounded-lg text-xs font-medium capitalize ${statusFilter === s ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}>{s}</button>
+                    <button key={s} onClick={() => setStatusFilter(s)} className={`px-4 py-2 rounded-lg text-xs font-medium capitalize ${statusFilter === s ? 'bg-white shadow-sm text-surface-900' : 'text-surface-500'}`}>{s}</button>
                 ))}
             </div>
 
             {loading ? (
-                <div className="text-center py-12"><Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" /></div>
+                <div className="text-center py-12"><Loader2 className="w-6 h-6 animate-spin mx-auto text-surface-400" /></div>
             ) : reminders.length === 0 ? (
-                <div className="text-center py-16 text-gray-400">
+                <div className="text-center py-16 text-surface-400">
                     <Bell className="w-12 h-12 mx-auto mb-3 opacity-50" />
                     <p className="font-medium">No {statusFilter} reminders</p>
                 </div>
             ) : (
                 <div className="space-y-3">
                     {reminders.map((r) => (
-                        <div key={r.id} className={`bg-white border rounded-xl p-4 flex items-center justify-between ${r.isOverdue ? 'border-red-200 bg-red-50' : 'border-gray-200'}`}>
+                        <div key={r.id} className={`bg-white border rounded-xl p-4 flex items-center justify-between ${r.isOverdue ? 'border-red-200 bg-red-50' : 'border-surface-200'}`}>
                             <div className="flex items-center gap-3">
                                 {r.isOverdue ? <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" /> : <Clock className="w-5 h-5 text-blue-500 flex-shrink-0" />}
                                 <div>
-                                    <p className={`text-sm font-medium ${r.status === 'done' ? 'line-through text-gray-400' : 'text-gray-900'}`}>{r.text}</p>
-                                    <p className="text-xs text-gray-400">Due: {new Date(r.due_at).toLocaleString()}</p>
+                                    <p className={`text-sm font-medium ${r.status === 'done' ? 'line-through text-surface-400' : 'text-surface-900'}`}>{r.text}</p>
+                                    <p className="text-xs text-surface-400">Due: {new Date(r.due_at).toLocaleString()}</p>
                                 </div>
                             </div>
                             {r.status !== 'done' && (
-                                <button onClick={() => markDone(r.id)} className="px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-xs font-medium hover:bg-green-200 flex items-center gap-1">
+                                <button onClick={() => markDone(r.id)} className="px-3 py-1.5 bg-brand-100 text-brand-700 rounded-lg text-xs font-medium hover:bg-brand-200 flex items-center gap-1">
                                     <CheckSquare className="w-3 h-3" /> Done
                                 </button>
                             )}

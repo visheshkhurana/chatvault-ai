@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import { MessageSquare, LogOut } from 'lucide-react';
+import { MessageSquare, LogOut, Bell, ChevronDown } from 'lucide-react';
 import { TabType } from '@/types/dashboard';
 
 import DashboardSidebar from '@/components/DashboardSidebar';
 import MobileTabBar from '@/components/MobileTabBar';
-import HomeSection from '@/components/dashboard/HomeSection';
+// HomeSection no longer used — Home tab now renders AssistantSection (chatbot)
 import MessagesSection from '@/components/dashboard/MessagesSection';
 import ActionsSection from '@/components/dashboard/ActionsSection';
 import PeopleSection from '@/components/dashboard/PeopleSection';
@@ -21,6 +21,15 @@ interface BridgeStatus {
 }
 
 const BRIDGE_URL = process.env.NEXT_PUBLIC_BRIDGE_URL || 'https://chatvault-ai-production.up.railway.app';
+
+const TAB_TITLES: Record<string, { title: string; subtitle: string }> = {
+  home: { title: 'Home', subtitle: 'Chat with Rememora' },
+  messages: { title: 'Messages', subtitle: 'Chats, files & search' },
+  actions: { title: 'Actions', subtitle: 'Reminders & tasks' },
+  people: { title: 'People', subtitle: 'Contact intelligence' },
+  assistant: { title: 'AI Assistant', subtitle: 'Ask anything' },
+  settings: { title: 'Settings', subtitle: 'Preferences & connection' },
+};
 
 function resolveTab(tab: TabType): TabType {
   const map: Record<string, TabType> = {
@@ -45,12 +54,25 @@ export default function DashboardPage() {
   const [user, setUser] = useState<any>(null);
   const [userName, setUserName] = useState<string>('');
   const [bridgeStatus, setBridgeStatus] = useState<BridgeStatus>({ connected: false });
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setActiveTab(getTabFromHash());
     const handleHashChange = () => setActiveTab(getTabFromHash());
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  // Close user menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const handleTabChange = useCallback((tab: TabType) => {
@@ -63,7 +85,7 @@ export default function DashboardPage() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
-        handleTabChange('assistant');
+        handleTabChange('home');
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -102,28 +124,34 @@ export default function DashboardPage() {
     window.location.href = '/login';
   };
 
+  const userInitials = userName
+    ? userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    : '?';
+
+  const tabInfo = TAB_TITLES[activeTab] || TAB_TITLES.home;
+
   const renderSection = () => {
     switch (activeTab) {
-      case 'home': return <HomeSection onNavigate={handleTabChange} />;
+      case 'home': return <AssistantSection bridgeStatus={bridgeStatus.connected ? 'connected' : 'disconnected'} userEmail={user?.email} userName={userName} />;
       case 'messages': return <MessagesSection />;
       case 'actions': return <ActionsSection />;
       case 'people': return <PeopleSection />;
-      case 'assistant': return <AssistantSection />;
+      case 'assistant': return <AssistantSection bridgeStatus={bridgeStatus.connected ? 'connected' : 'disconnected'} userEmail={user?.email} userName={userName} />;
       case 'settings': return <SettingsSection />;
-      default: return <HomeSection onNavigate={handleTabChange} />;
+      default: return <AssistantSection bridgeStatus={bridgeStatus.connected ? 'connected' : 'disconnected'} userEmail={user?.email} userName={userName} />;
     }
   };
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full" />
+      <div className="min-h-screen flex items-center justify-center bg-surface-50">
+        <div className="animate-spin w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-surface-50 flex">
       <DashboardSidebar
         activeTab={activeTab}
         onTabChange={handleTabChange}
@@ -134,15 +162,79 @@ export default function DashboardPage() {
       />
       <main className="flex-1 overflow-hidden">
         <div className="h-screen flex flex-col">
-          <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between md:hidden">
-            <div className="flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-emerald-600" />
-              <span className="font-semibold text-gray-900">Rememora</span>
+          {/* Desktop top bar */}
+          <header className="hidden md:flex h-14 bg-white border-b border-surface-200 px-6 items-center justify-between flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <h1 className="text-base font-bold text-surface-900">{tabInfo.title}</h1>
+              <span className="text-sm text-surface-400 hidden lg:inline">{tabInfo.subtitle}</span>
             </div>
-            <button onClick={handleLogout} className="p-2 text-gray-400 hover:text-gray-600">
-              <LogOut className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-3">
+              {/* Notification bell */}
+              <button
+                onClick={() => handleTabChange('actions')}
+                className="relative w-8 h-8 rounded-lg border border-surface-200 flex items-center justify-center text-surface-400 hover:text-surface-600 hover:border-surface-300 transition-colors"
+                title="View actions & reminders"
+              >
+                <Bell className="w-4 h-4" />
+              </button>
+
+              {/* User avatar + dropdown */}
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="flex items-center gap-2 p-1 rounded-lg hover:bg-surface-50 transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-white text-xs font-bold shadow-sm">
+                    {userInitials}
+                  </div>
+                  <ChevronDown className="w-3.5 h-3.5 text-surface-400" />
+                </button>
+                {showUserMenu && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white border border-surface-200 rounded-xl shadow-lg py-1 z-50">
+                    <div className="px-4 py-3 border-b border-surface-100">
+                      <p className="text-sm font-semibold text-surface-900">{userName}</p>
+                      <p className="text-xs text-surface-400 truncate">{user?.email}</p>
+                    </div>
+                    <button
+                      onClick={() => { handleTabChange('settings'); setShowUserMenu(false); }}
+                      className="w-full text-left px-4 py-2.5 text-sm text-surface-600 hover:bg-surface-50 transition-colors"
+                    >
+                      Settings
+                    </button>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      Sign out
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </header>
+
+          {/* Mobile top bar */}
+          <header className="md:hidden bg-white border-b border-surface-200 px-4 py-3 flex items-center justify-between flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 bg-gradient-to-br from-brand-500 to-brand-700 rounded-lg flex items-center justify-center">
+                <MessageSquare className="w-3.5 h-3.5 text-white" />
+              </div>
+              <span className="font-bold text-surface-900 text-sm">Rememora</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleTabChange('actions')}
+                className="w-8 h-8 rounded-lg border border-surface-200 flex items-center justify-center text-surface-400"
+              >
+                <Bell className="w-4 h-4" />
+              </button>
+              <button onClick={handleLogout} className="p-2 text-surface-400 hover:text-surface-600">
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          </header>
+
           <div className="flex-1 overflow-hidden">
             {renderSection()}
           </div>
