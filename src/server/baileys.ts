@@ -59,7 +59,7 @@ let syncStats = {
     botResponses: 0,
 };
 
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'https://rememora.app,http://localhost:3000').split(',').map(s => s.trim());
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'https://rememora.app,https://chatvault-ai.vercel.app,http://localhost:3000').split(',').map(s => s.trim());
 const BRIDGE_SECRET = process.env.BRIDGE_SECRET || '';
 
 const app = express();
