@@ -46,6 +46,8 @@ let ownerJid: string | null = null;let ownerLid: string | null = null;
 
 let reconnectAttempts = 0;
 const MAX_RECONNECT_DELAY = 300000; // 5 minutes max
+let lastEventAt: Date | null = null; // Track last Baileys event for staleness detection
+const STALE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes without events = stale
 
 let syncStats = {
     chats: 0,
@@ -114,6 +116,8 @@ app.get('/status', (_req: any, res: any) => {
         sync: syncStats,
         phone: sock?.user?.id?.split(':')[0]?.split('@')[0] || null,
         name: sock?.user?.name || null,
+        lastEventAt: lastEventAt?.toISOString() || null,
+        staleMs: lastEventAt ? Date.now() - lastEventAt.getTime() : null,
     });
 });
 
@@ -156,6 +160,32 @@ app.post('/reset', async (req: any, res: any) => {
                     logger.error({ err }, 'Reset failed');
                     res.status(500).json({ ok: false, error: 'Reset failed' });
         }
+});
+
+// ================================================================
+// Soft Reconnect — restart socket without clearing auth
+// ================================================================
+
+app.post('/reconnect', async (req: any, res: any) => {
+    const authHeader = req.headers['x-bridge-secret'] || req.query.secret;
+    if (BRIDGE_SECRET && authHeader !== BRIDGE_SECRET) {
+        return res.status(401).json({ error: 'Unauthorized — provide x-bridge-secret header' });
+    }
+    logger.info('Soft reconnect requested');
+    try {
+        if (sock) {
+            sock.end(undefined);
+            sock = null;
+        }
+        connectionStatus = 'disconnected';
+        reconnectAttempts = 0;
+        // Restart without clearing auth — will use existing credentials
+        setTimeout(startBaileys, 1000);
+        res.json({ ok: true, message: 'Reconnecting with existing auth...' });
+    } catch (err) {
+        logger.error({ err }, 'Reconnect failed');
+        res.status(500).json({ ok: false, error: 'Reconnect failed' });
+    }
 });
 
 // ================================================================
@@ -381,6 +411,39 @@ async function backupAuthToSupabase() {
     }
 }
 
+// ================================================================
+// Keepalive Timer — auto-reconnect if socket goes stale
+// ================================================================
+
+let keepaliveInterval: NodeJS.Timeout | null = null;
+
+function startKeepaliveTimer() {
+    // Clear any existing timer
+    if (keepaliveInterval) clearInterval(keepaliveInterval);
+
+    keepaliveInterval = setInterval(() => {
+        if (connectionStatus !== 'connected' || !lastEventAt) return;
+
+        const staleMs = Date.now() - lastEventAt.getTime();
+        if (staleMs > STALE_TIMEOUT_MS) {
+            logger.warn({ staleMs, lastEventAt: lastEventAt.toISOString(), thresholdMs: STALE_TIMEOUT_MS }, 'Connection appears stale — no events received. Auto-reconnecting...');
+            // Soft reconnect: close socket, restart without clearing auth
+            if (sock) {
+                try { sock.end(undefined); } catch (_) {}
+                sock = null;
+            }
+            connectionStatus = 'disconnected';
+            reconnectAttempts = 0;
+            lastEventAt = null;
+            if (keepaliveInterval) clearInterval(keepaliveInterval);
+            keepaliveInterval = null;
+            setTimeout(startBaileys, 2000);
+        } else {
+            logger.debug({ staleMs, lastEventAt: lastEventAt.toISOString() }, 'Keepalive check — connection healthy');
+        }
+    }, 60_000); // Check every 60 seconds
+}
+
 async function startBaileys() {
     if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true });
 
@@ -416,7 +479,10 @@ async function startBaileys() {
             connectionStatus = 'connected';
             qrCode = null;
             reconnectAttempts = 0; // Reset backoff on successful connection
+            lastEventAt = new Date(); // Track connection time
             logger.info('Connected!');
+            // Start keepalive: auto-reconnect if no events for STALE_TIMEOUT_MS
+            startKeepaliveTimer();
         // Capture LID for multi-device self-chat
         if (sock?.user?.lid) {
           ownerLid = sock.user.lid.split(':')[0] + '@lid';
@@ -453,6 +519,7 @@ async function startBaileys() {
     });
 
     sock.ev.on('messaging-history.set', async ({ chats: histChats, contacts: histContacts, messages: histMsgs, isLatest }: any) => {
+        lastEventAt = new Date(); // Reset staleness timer
         logger.info({ chats: histChats.length, contacts: histContacts.length, messages: histMsgs.length, isLatest }, 'History set received');
         syncStats.inProgress = true;
         if (!syncStats.startedAt) syncStats.startedAt = new Date();
@@ -511,6 +578,7 @@ async function startBaileys() {
 
         // Debug: log all upsert events for diagnostics
         const ownerPhone = sock?.user?.id?.split(':')[0]?.split('@')[0] || '';
+        lastEventAt = new Date(); // Reset staleness timer on every message event
         logger.info({ type, count: messages.length, fromMe: messages[0]?.key?.fromMe, remoteJid: messages[0]?.key?.remoteJid?.split('@')[0]?.substring(0, 6) }, 'messages.upsert event');
 
         if (isHistory) {
