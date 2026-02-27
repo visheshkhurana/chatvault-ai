@@ -155,14 +155,76 @@ export default function MessagesSection() {
       .select('*')
       .eq('user_id', userId)
       .order('last_message_at', { ascending: false });
-    // Map DB columns to our interface
-    const mapped: Chat[] = (data || []).map((row: any) => ({
-      id: row.id,
-      name: row.title || row.wa_chat_id || '',
-      is_group: row.chat_type === 'group',
-      last_message_at: row.last_message_at,
-      wa_chat_id: row.wa_chat_id || '',
-    }));
+
+    // For chats whose title is just a phone number, try to resolve a real name
+    // from the contacts table or most recent message sender_name
+    const mapped: Chat[] = [];
+    const phoneTitleChats: { index: number; waJid: string; chatId: string }[] = [];
+
+    for (const row of (data || [])) {
+      const title = row.title || row.wa_chat_id || '';
+      const isPhoneTitle = /^\d{7,}$/.test(title.replace(/\D/g, ''));
+      mapped.push({
+        id: row.id,
+        name: title,
+        is_group: row.chat_type === 'group',
+        last_message_at: row.last_message_at,
+        wa_chat_id: row.wa_chat_id || '',
+      });
+      if (isPhoneTitle && row.chat_type !== 'group') {
+        phoneTitleChats.push({ index: mapped.length - 1, waJid: row.wa_chat_id || '', chatId: row.id });
+      }
+    }
+
+    // Batch-resolve names for chats with phone-number titles
+    if (phoneTitleChats.length > 0) {
+      // Strategy 1: Check contacts table for display_name by wa_id
+      const waJids = phoneTitleChats.map(c => c.waJid).filter(Boolean);
+      if (waJids.length > 0) {
+        const { data: contacts } = await supabase
+          .from('contacts')
+          .select('wa_id, display_name')
+          .eq('user_id', userId)
+          .in('wa_id', waJids);
+
+        const contactMap = new Map<string, string>();
+        for (const c of (contacts || [])) {
+          const dn = c.display_name || '';
+          const isRealName = dn && !/^\d{7,}$/.test(dn.replace(/\D/g, ''));
+          if (isRealName) contactMap.set(c.wa_id, dn);
+        }
+
+        for (const pc of phoneTitleChats) {
+          const name = contactMap.get(pc.waJid);
+          if (name) mapped[pc.index].name = name;
+        }
+      }
+
+      // Strategy 2: For still-unresolved chats, use sender_name from most recent non-self message
+      const unresolvedChats = phoneTitleChats.filter(pc => {
+        const n = mapped[pc.index].name;
+        return /^\d{7,}$/.test(n.replace(/\D/g, ''));
+      });
+
+      for (const pc of unresolvedChats) {
+        const { data: recentMsg } = await supabase
+          .from('messages')
+          .select('sender_name')
+          .eq('chat_id', pc.chatId)
+          .eq('is_from_me', false)
+          .not('sender_name', 'is', null)
+          .order('timestamp', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (recentMsg?.sender_name) {
+          const sn = recentMsg.sender_name;
+          const isRealName = sn && !/^\d{7,}$/.test(sn.replace(/\D/g, ''));
+          if (isRealName) mapped[pc.index].name = sn;
+        }
+      }
+    }
+
     setChats(mapped);
     setLoading(false);
   }

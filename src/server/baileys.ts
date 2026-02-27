@@ -1337,8 +1337,8 @@ async function handleMessage(msg: proto.IWebMessageInfo, isHistory = false) {
 
     logger.info({ from: senderPhone, type: contentType, isGroup }, 'Processing message');
 
-    const contactId = await ensureContact(userId, senderPhone, senderJid);
-    const chatId = await ensureChat(userId, remoteJid, isGroup);
+    const contactId = await ensureContact(userId, senderPhone, senderJid, msg.pushName || undefined);
+    const chatId = await ensureChat(userId, remoteJid, isGroup, msg.pushName || undefined);
 
     const { data: stored, error } = await supabase.from('messages').insert({
         user_id: userId,
@@ -1528,10 +1528,17 @@ function extractContent(msg: proto.IWebMessageInfo, ct: string | undefined) {
 // Contact & Chat helpers
 // ================================================================
 
-async function ensureContact(userId: string, phone: string, jid: string): Promise<string> {
-    const { data } = await supabase.from('contacts').select('id').eq('wa_id', jid).eq('user_id', userId).maybeSingle();
-    if (data) return data.id;
-    const { data: c, error } = await supabase.from('contacts').insert({ user_id: userId, wa_id: jid, display_name: phone }).select('id').single();
+async function ensureContact(userId: string, phone: string, jid: string, pushName?: string): Promise<string> {
+    const { data } = await supabase.from('contacts').select('id, display_name').eq('wa_id', jid).eq('user_id', userId).maybeSingle();
+    if (data) {
+        // Update display_name if we have a real pushName and current name is just a phone number
+        if (pushName && pushName !== phone && /^\d{7,}$/.test((data.display_name || '').replace(/\D/g, ''))) {
+            await supabase.from('contacts').update({ display_name: pushName }).eq('id', data.id);
+        }
+        return data.id;
+    }
+    const displayName = pushName && pushName !== phone ? pushName : phone;
+    const { data: c, error } = await supabase.from('contacts').insert({ user_id: userId, wa_id: jid, display_name: displayName }).select('id').single();
     if (error) {
         const { data: r } = await supabase.from('contacts').select('id').eq('wa_id', jid).eq('user_id', userId).maybeSingle();
         return r?.id || 'unknown';
@@ -1539,10 +1546,16 @@ async function ensureContact(userId: string, phone: string, jid: string): Promis
     return c.id;
 }
 
-async function ensureChat(userId: string, jid: string, isGroup: boolean): Promise<string> {
-    const { data } = await supabase.from('chats').select('id').eq('wa_chat_id', jid).eq('user_id', userId).maybeSingle();
-    if (data) return data.id;
-    let chatTitle = jid.split('@')[0];
+async function ensureChat(userId: string, jid: string, isGroup: boolean, pushName?: string): Promise<string> {
+    const { data } = await supabase.from('chats').select('id, title').eq('wa_chat_id', jid).eq('user_id', userId).maybeSingle();
+    if (data) {
+        // Update title if we have a real pushName and current title is just a phone number
+        if (!isGroup && pushName && /^\d{7,}$/.test((data.title || '').replace(/\D/g, ''))) {
+            await supabase.from('chats').update({ title: pushName }).eq('id', data.id);
+        }
+        return data.id;
+    }
+    let chatTitle = pushName && !isGroup ? pushName : jid.split('@')[0];
     if (isGroup && sock) {
         try { chatTitle = (await sock.groupMetadata(jid)).subject || chatTitle; } catch (err) {
             logger.debug({ err, jid }, 'Failed to fetch group metadata');
