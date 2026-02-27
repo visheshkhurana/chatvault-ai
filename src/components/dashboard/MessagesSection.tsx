@@ -33,11 +33,13 @@ interface Chat {
 interface Message {
   id: string;
   chat_id: string;
-  sender: string;
-  content: string;
+  sender_name: string | null;
+  sender_phone: string | null;
+  text_content: string | null;
   message_type: string;
+  timestamp: string;
   created_at: string;
-  has_attachment: boolean;
+  is_from_me: boolean;
 }
 
 interface Attachment {
@@ -209,7 +211,7 @@ export default function MessagesSection() {
       .from('messages')
       .select('*')
       .eq('chat_id', chatId)
-      .order('created_at', { ascending: false })
+      .order('timestamp', { ascending: true })
       .limit(100);
     setMessages(data || []);
   }
@@ -440,11 +442,11 @@ export default function MessagesSection() {
                     <p className="text-center text-surface-400 text-sm py-8">No messages</p>
                   ) : (
                     messages.map(msg => (
-                      <div key={msg.id} className="max-w-[80%]">
-                        <div className="bg-white rounded-xl px-3.5 py-2.5 shadow-sm border border-surface-100">
-                          <p className="text-xs font-medium text-brand-600 mb-1">{getDisplayName(msg.sender, msg.sender)}</p>
-                          <p className="text-sm text-surface-800 leading-relaxed">{msg.content}</p>
-                          <p className="text-[10px] text-surface-400 mt-1.5">{timeAgo(msg.created_at)}</p>
+                      <div key={msg.id} className={`max-w-[80%] ${msg.is_from_me ? 'ml-auto' : ''}`}>
+                        <div className={`rounded-xl px-3.5 py-2.5 shadow-sm border ${msg.is_from_me ? 'bg-brand-50 border-brand-100' : 'bg-white border-surface-100'}`}>
+                          <p className="text-xs font-medium text-brand-600 mb-1">{msg.is_from_me ? 'You' : getDisplayName(msg.sender_name || msg.sender_phone || '', msg.sender_phone || '')}</p>
+                          <p className="text-sm text-surface-800 leading-relaxed">{msg.text_content || (msg.message_type !== 'text' ? `[${msg.message_type}]` : '')}</p>
+                          <p className="text-[10px] text-surface-400 mt-1.5">{timeAgo(msg.timestamp || msg.created_at)}</p>
                         </div>
                       </div>
                     ))
@@ -858,13 +860,13 @@ export default function MessagesSection() {
                   {searchResults.map(msg => (
                     <div key={msg.id} className="border border-surface-100 rounded-xl p-3.5 hover:bg-surface-50 transition-colors bg-white">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-medium text-brand-600">{getDisplayName(msg.sender, msg.sender)}</span>
+                        <span className="text-xs font-medium text-brand-600">{msg.is_from_me ? 'You' : getDisplayName(msg.sender_name || msg.sender_phone || '', msg.sender_phone || '')}</span>
                         <span className="text-[11px] text-surface-400 flex items-center gap-1">
                           <Clock className="w-3 h-3" />
-                          {timeAgo(msg.created_at)}
+                          {timeAgo(msg.timestamp || msg.created_at)}
                         </span>
                       </div>
-                      <p className="text-sm text-surface-800 leading-relaxed">{msg.content}</p>
+                      <p className="text-sm text-surface-800 leading-relaxed">{msg.text_content || (msg.message_type !== 'text' ? `[${msg.message_type}]` : '')}</p>
                     </div>
                   ))}
                 </div>
