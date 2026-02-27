@@ -205,12 +205,16 @@ export default function AssistantSection({ bridgeStatus, userEmail, userName: us
               {/* Feature cards */}
               <div className="grid grid-cols-2 gap-2.5 mb-6 max-w-sm mx-auto">
                 {[
-                  { icon: Search, label: 'Search', desc: 'Find any message', color: 'text-blue-600 bg-blue-50' },
-                  { icon: CheckCircle2, label: 'Commitments', desc: 'Track promises', color: 'text-brand-600 bg-brand-50' },
-                  { icon: MessageCircle, label: 'Summarize', desc: 'Chat summaries', color: 'text-violet-600 bg-violet-50' },
-                  { icon: Zap, label: 'Insights', desc: 'Smart analysis', color: 'text-amber-600 bg-amber-50' },
+                  { icon: Search, label: 'Search', desc: 'Find any message', color: 'text-blue-600 bg-blue-50', query: 'What did I discuss recently?' },
+                  { icon: CheckCircle2, label: 'Commitments', desc: 'Track promises', color: 'text-brand-600 bg-brand-50', query: 'Show my commitments' },
+                  { icon: MessageCircle, label: 'Summarize', desc: 'Chat summaries', color: 'text-violet-600 bg-violet-50', query: 'Summarize my most recent chat' },
+                  { icon: Zap, label: 'Insights', desc: 'Smart analysis', color: 'text-amber-600 bg-amber-50', query: 'What are the key topics across my recent chats?' },
                 ].map((f) => (
-                  <div key={f.label} className="flex items-center gap-2.5 px-3 py-2.5 bg-white border border-surface-100 rounded-xl">
+                  <button
+                    key={f.label}
+                    onClick={() => handleSuggestionClick(f.query)}
+                    className="flex items-center gap-2.5 px-3 py-2.5 bg-white border border-surface-100 rounded-xl text-left hover:border-brand-200 hover:bg-brand-50/30 hover:shadow-sm transition-all cursor-pointer active:scale-[0.98]"
+                  >
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${f.color}`}>
                       <f.icon className="w-4 h-4" />
                     </div>
@@ -218,7 +222,7 @@ export default function AssistantSection({ bridgeStatus, userEmail, userName: us
                       <p className="text-xs font-semibold text-surface-800">{f.label}</p>
                       <p className="text-[10px] text-surface-400">{f.desc}</p>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
 
