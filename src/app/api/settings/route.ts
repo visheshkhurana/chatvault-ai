@@ -13,7 +13,7 @@ export const GET = withAuth(async (req: NextRequest, { user }) => {
     // Fetch user settings
     const { data: userData, error } = await supabaseAdmin
         .from('users')
-        .select('display_name, timezone, data_retention_days, settings')
+        .select('display_name, timezone, data_retention_days, settings, google_access_token')
         .eq('id', user.id)
         .single();
 
@@ -40,6 +40,7 @@ export const GET = withAuth(async (req: NextRequest, { user }) => {
             email: user.email,
             timezone: userData?.timezone || 'UTC',
             dataRetentionDays: userData?.data_retention_days || 365,
+            googleCalendarConnected: !!userData?.google_access_token,
         },
         settings: userData?.settings || {},
         privacyZones: privacyZones || [],
@@ -75,6 +76,24 @@ const updateSettingsSchema = z.object({
 });
 
 export const POST = withAuth(async (req: NextRequest, { user }) => {
+    // Handle Google Calendar disconnect separately (not in schema)
+    const rawBody = await req.clone().json().catch(() => ({}));
+    if (rawBody.disconnectGoogleCalendar) {
+        const { error } = await supabaseAdmin
+            .from('users')
+            .update({
+                google_access_token: null,
+                google_refresh_token: null,
+                google_token_expiry: null,
+            })
+            .eq('id', user.id);
+        if (error) {
+            console.error('[Settings] Error disconnecting Google Calendar:', error);
+            return apiError('Failed to disconnect Google Calendar', 500);
+        }
+        return apiSuccess({ success: true, googleCalendarDisconnected: true });
+    }
+
     const parsed = await parseBody(req, updateSettingsSchema);
     if (!parsed.success) return parsed.response;
 

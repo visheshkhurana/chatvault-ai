@@ -6,9 +6,30 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { sendTextMessage } from '@/lib/whatsapp';
 import OpenAI from 'openai';
 import { addMinutes, format, parseISO } from 'date-fns';
+
+const BRIDGE_URL = process.env.NEXT_PUBLIC_BRIDGE_URL || 'https://chatvault-ai-production.up.railway.app';
+
+/**
+ * Send a WhatsApp message via the Baileys bridge /send endpoint.
+ * Falls back gracefully if bridge is unavailable.
+ */
+async function sendViaBridge(phone: string, message: string): Promise<void> {
+  const res = await fetch(BRIDGE_URL + '/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      phone,
+      message,
+      secret: process.env.CRON_SECRET,
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(`Bridge send failed (${res.status}): ${body.error || 'unknown'}`);
+  }
+}
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -59,7 +80,7 @@ export async function GET(request: NextRequest) {
           msg += `\n\n_Context: ${reminder.context_summary.substring(0, 200)}_`;
         }
 
-        await sendTextMessage(phone, msg);
+        await sendViaBridge(phone, msg);
         await supabaseAdmin
           .from('reminders')
           .update({ status: 'done', updated_at: new Date().toISOString() })
@@ -125,7 +146,7 @@ export async function GET(request: NextRequest) {
           let msg = `🔔 *Follow-up Needed*\n\n${reminder.text}`;
           msg += `\n\n⏳ ${contactName} hasn't replied in ${condition.waitHours}+ hours.`;
 
-          await sendTextMessage(phone, msg);
+          await sendViaBridge(phone, msg);
           await supabaseAdmin
             .from('reminders')
             .update({ status: 'done', updated_at: new Date().toISOString() })
@@ -154,7 +175,7 @@ export async function GET(request: NextRequest) {
         const phone = reminder.users?.phone;
         if (!phone) continue;
 
-        await sendTextMessage(phone, `🔁 *Recurring Reminder*\n\n${reminder.text}`);
+        await sendViaBridge(phone, `🔁 *Recurring Reminder*\n\n${reminder.text}`);
 
         // Calculate next occurrence and update due_at
         const nextDue = getNextOccurrence(reminder.recurrence_rule);
@@ -253,7 +274,7 @@ export async function GET(request: NextRequest) {
           alertMsg += `\n\n🏷️ Topics: ${meeting.key_topics.join(', ')}`;
         }
 
-        await sendTextMessage(phone, alertMsg);
+        await sendViaBridge(phone, alertMsg);
 
         // Mark reminder as sent
         await supabaseAdmin

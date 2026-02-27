@@ -44,6 +44,9 @@ let connectionStatus: 'disconnected' | 'connecting' | 'connected' = 'disconnecte
 let ownerUserId: string | null = null;
 let ownerJid: string | null = null;let ownerLid: string | null = null;
 
+let reconnectAttempts = 0;
+const MAX_RECONNECT_DELAY = 300000; // 5 minutes max
+
 let syncStats = {
     chats: 0,
     messages: 0,
@@ -56,8 +59,20 @@ let syncStats = {
     botResponses: 0,
 };
 
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'https://rememora.app,http://localhost:3000').split(',').map(s => s.trim());
+const BRIDGE_SECRET = process.env.BRIDGE_SECRET || '';
+
 const app = express();
-app.use(cors());
+app.use(cors({
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+        // Allow requests with no origin (e.g. server-to-server, curl)
+        if (!origin) return callback(null, true);
+        if (ALLOWED_ORIGINS.includes(origin) || ALLOWED_ORIGINS.includes('*')) return callback(null, true);
+        callback(null, false);
+    },
+    methods: ['GET', 'POST'],
+    credentials: true,
+}));
 
 app.get('/', (_req: any, res: any) => {
     res.json({
@@ -102,7 +117,12 @@ app.get('/status', (_req: any, res: any) => {
     });
 });
 
-app.post('/reset', async (_req: any, res: any) => {
+app.post('/reset', async (req: any, res: any) => {
+        // Require a shared secret for destructive operations
+        const authHeader = req.headers['x-bridge-secret'] || req.query.secret;
+        if (BRIDGE_SECRET && authHeader !== BRIDGE_SECRET) {
+            return res.status(401).json({ error: 'Unauthorized — provide x-bridge-secret header' });
+        }
         logger.info('Reset requested - clearing auth state');
         try {
                     // Close existing connection
@@ -143,6 +163,31 @@ app.post('/reset', async (_req: any, res: any) => {
 // ================================================================
 
 app.use(express.json());
+
+// ================================================================
+// Send endpoint — External callers (cron, dashboard) send via Baileys
+// ================================================================
+
+app.post('/send', async (req: any, res: any) => {
+    const { phone, message, secret } = req.body;
+    if (secret !== process.env.CRON_SECRET && secret !== BRIDGE_SECRET) {
+        return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    }
+    if (!phone || !message) {
+        return res.status(400).json({ ok: false, error: 'Missing phone or message' });
+    }
+    if (!sock || connectionStatus !== 'connected') {
+        return res.status(503).json({ ok: false, error: 'WhatsApp not connected' });
+    }
+    try {
+        const jid = phone.includes('@') ? phone : `${phone}@s.whatsapp.net`;
+        await sock.sendMessage(jid, { text: message });
+        res.json({ ok: true });
+    } catch (err: any) {
+        logger.error({ err }, 'Send message failed');
+        res.status(500).json({ ok: false, error: err.message });
+    }
+});
 
 app.post('/send-welcome', async (_req: any, res: any) => {
         logger.info('Force send-welcome requested');
@@ -351,7 +396,7 @@ async function startBaileys() {
 
     sock = makeWASocket({
         auth: state,
-        logger: pino({ level: 'debug' }),
+        logger: pino({ level: process.env.BAILEYS_LOG_LEVEL || 'warn' }),
         
         printQRInTerminal: true,
                 browser: ['Ubuntu', 'Chrome', '20.0.04'],
@@ -370,6 +415,7 @@ async function startBaileys() {
         if (connection === 'open') {
             connectionStatus = 'connected';
             qrCode = null;
+            reconnectAttempts = 0; // Reset backoff on successful connection
             logger.info('Connected!');
         // Capture LID for multi-device self-chat
         if (sock?.user?.lid) {
@@ -390,8 +436,10 @@ async function startBaileys() {
             connectionStatus = 'disconnected';
             const code = (lastDisconnect?.error as Boom)?.output?.statusCode;
             if (code !== DisconnectReason.loggedOut) {
-                logger.error({ code, error: lastDisconnect?.error?.message || lastDisconnect?.error, stack: lastDisconnect?.error?.stack }, 'Connection closed, reconnecting in 5s...');
-                setTimeout(startBaileys, 5000);
+                reconnectAttempts++;
+                const delay = Math.min(5000 * Math.pow(2, reconnectAttempts - 1), MAX_RECONNECT_DELAY) + Math.floor(Math.random() * 2000);
+                logger.error({ code, error: lastDisconnect?.error?.message || lastDisconnect?.error, attempt: reconnectAttempts, nextRetryMs: delay }, 'Connection closed, reconnecting...');
+                setTimeout(startBaileys, delay);
             } else {
                 logger.error('Logged out. Delete auth_state and restart.');
                 if (fs.existsSync(AUTH_DIR)) fs.rmSync(AUTH_DIR, { recursive: true });
@@ -561,6 +609,18 @@ async function maybeHandleBotQuery(msg: proto.IWebMessageInfo) {
 
     if (!isBotQuery) return;
 
+    // Handle "yes" confirmations for pending meetings
+    const queryLower = queryText.toLowerCase().trim();
+    if (queryLower === 'yes' || queryLower === 'confirm' || queryLower === 'y') {
+        try {
+            const userId = await ensureOwnerUser();
+            const confirmed = await confirmPendingMeeting(userId, remoteJid);
+            if (confirmed) return; // Confirmation handled
+        } catch (err) {
+            logger.warn({ err }, 'Meeting confirmation check failed');
+        }
+    }
+
     logger.info({ query: queryText.substring(0, 80), from: remoteJid }, 'Bot query received');
     syncStats.botQueries++;
 
@@ -594,6 +654,12 @@ async function processBotQuery(query: string, userId: string): Promise<string> {
             return await handleCommitmentsBot(userId);
         case 'summarize':
             return await handleSummarizeBot(query, userId, intent);
+        case 'meeting':
+            return await handleMeetingBot(query, userId);
+        case 'reminder':
+            return await handleReminderBot(query, userId);
+        case 'calendar_query':
+            return await handleCalendarBot(query, userId);
         case 'retrieval':
         case 'question':
         default:
@@ -606,7 +672,7 @@ async function processBotQuery(query: string, userId: string): Promise<string> {
 // ================================================================
 
 interface BotIntent {
-    type: 'retrieval' | 'question' | 'summarize' | 'commitment' | 'casual' | 'command';
+    type: 'retrieval' | 'question' | 'summarize' | 'commitment' | 'casual' | 'command' | 'meeting' | 'reminder' | 'calendar_query';
     contactRef?: string;
     documentType?: string;
     dateRef?: string;
@@ -630,6 +696,18 @@ async function classifyBotIntent(message: string): Promise<BotIntent> {
     if (/\b(commitment|promise|deadline|pending|owe|committed)\b/i.test(lower)) {
         return { type: 'commitment', searchQuery: message };
     }
+    if (/\b(remind\s*me|set\s*(a\s*)?reminder|don'?t\s*let\s*me\s*forget)\b/i.test(lower)) {
+        return { type: 'reminder', searchQuery: message };
+    }
+    if (/\b(if\s+\w+\s+(doesn'?t|don'?t|does\s*not)\s*(reply|respond|get\s*back))\b/i.test(lower)) {
+        return { type: 'reminder', searchQuery: message };
+    }
+    if (/\b(schedule|meeting|call\s+at|meet\s+(on|at|tomorrow)|let'?s\s+meet|catch\s+up\s+(at|on))\b/i.test(lower)) {
+        return { type: 'meeting', searchQuery: message };
+    }
+    if (/\b(my\s+(calendar|schedule|events|agenda)|what'?s\s+(on\s+my|coming\s+up)|upcoming\s+(events|meetings)|free\s+(time|slots))\b/i.test(lower)) {
+        return { type: 'calendar_query', searchQuery: message };
+    }
 
     if (!OPENROUTER_API_KEY) {
         return { type: 'question', searchQuery: message };
@@ -642,7 +720,7 @@ async function classifyBotIntent(message: string): Promise<BotIntent> {
             body: JSON.stringify({
                 model: LLM_MODEL,
                 messages: [
-                    { role: 'system', content: 'Classify this WhatsApp message into one intent. Reply with strict JSON only. Intents: retrieval (find documents/files/messages), summarize (summarize a conversation), commitment (show promises/deadlines), question (general question about their data), casual (greeting/thanks), command (help/status). Extract: contactRef (person name if mentioned), documentType (type of document if mentioned), dateRef (date/time reference), searchQuery (optimized search query). JSON format: {"type":"...","contactRef":"...","documentType":"...","dateRef":"...","searchQuery":"..."}' },
+                    { role: 'system', content: 'Classify this WhatsApp message into one intent. Reply with strict JSON only. Intents: retrieval (find documents/files/messages), summarize (summarize a conversation), commitment (show promises/deadlines), meeting (schedule/create a meeting or call), reminder (set a reminder for something), calendar_query (check calendar/schedule/upcoming events), question (general question about their data), casual (greeting/thanks), command (help/status). Extract: contactRef (person name if mentioned), documentType (type of document if mentioned), dateRef (date/time reference), searchQuery (optimized search query). JSON format: {"type":"...","contactRef":"...","documentType":"...","dateRef":"...","searchQuery":"..."}' },
                     { role: 'user', content: message }
                 ],
                 temperature: 0.1,
@@ -674,11 +752,11 @@ async function classifyBotIntent(message: string): Promise<BotIntent> {
 // ================================================================
 
 function handleCasualBot(query: string): string {
-    return "Hey! \ud83d\udc4b I'm Rememora, your WhatsApp memory assistant.\n\nYou can ask me things like:\n\u2022 \"Find my medical report from March\"\n\u2022 \"Summarise my conversation with Tanmay\"\n\u2022 \"What documents did I share last week?\"\n\u2022 \"Show my pending commitments\"\n\nJust type your question naturally!";
+    return "Hey! 👋 I'm Rememora, your WhatsApp memory & personal assistant.\n\nYou can ask me things like:\n🔍 \"Find my medical report from March\"\n📝 \"Summarise my conversation with Tanmay\"\n✅ \"Show my pending commitments\"\n📅 \"Schedule a meeting with Neha tomorrow at 3pm\"\n⏰ \"Remind me to call the bank on Friday\"\n🗓️ \"What's on my calendar this week?\"\n\nJust type your question naturally!";
 }
 
 function handleCommandBot(): string {
-    return "\ud83e\udd16 *Rememora Commands*\n\n\ud83d\udd0d *Search* \u2014 Ask about any topic, file, or message\n\u2022 \"Find the proposal I sent to OROS\"\n\u2022 \"What did Neha send me yesterday?\"\n\n\ud83d\udcdd *Summarize* \u2014 Get conversation summaries\n\u2022 \"Summarize my chat with the bankers\"\n\u2022 \"Recap my conversation with Mom\"\n\n\u2705 *Commitments* \u2014 Track promises & deadlines\n\u2022 \"Show my commitments\"\n\u2022 \"What did I promise to do?\"\n\n\ud83d\udcc4 *Documents* \u2014 Find files & attachments\n\u2022 \"Find my blood test report\"\n\u2022 \"Show PDFs from last month\"\n\n\ud83d\udca1 *Tips:*\n\u2022 In self-chat: just type your question\n\u2022 In any chat: prefix with ! or @rememora";
+    return "🤖 *Rememora Commands*\n\n🔍 *Search* — Ask about any topic, file, or message\n• \"Find the proposal I sent to OROS\"\n• \"What did Neha send me yesterday?\"\n\n📝 *Summarize* — Get conversation summaries\n• \"Summarize my chat with the bankers\"\n• \"Recap my conversation with Mom\"\n\n✅ *Commitments* — Track promises & deadlines\n• \"Show my commitments\"\n• \"What did I promise to do?\"\n\n📅 *Meetings* — Schedule & manage meetings\n• \"Schedule a call with Neha tomorrow at 3pm\"\n• \"Meeting with team on Friday at 11am\"\n\n⏰ *Reminders* — Never forget anything\n• \"Remind me to call the bank tomorrow\"\n• \"If Tanmay doesn't reply in 48h, remind me\"\n• \"Remind me every Monday to review reports\"\n\n🗓️ *Calendar* — Check your schedule\n• \"What's on my calendar?\"\n• \"Show my upcoming events\"\n\n📄 *Documents* — Find files & attachments\n• \"Find my blood test report\"\n• \"Show PDFs from last month\"\n\n💡 *Tips:*\n• In self-chat: just type your question\n• In any chat: prefix with ! or @rememora";
 }
 
 async function handleCommitmentsBot(userId: string): Promise<string> {
@@ -703,6 +781,377 @@ async function handleCommitmentsBot(userId: string): Promise<string> {
     });
 
     return response.trim();
+}
+
+// ================================================================
+// Meeting Handler — Detect meeting from user's message & store
+// ================================================================
+
+async function handleMeetingBot(query: string, userId: string): Promise<string> {
+    try {
+        // Get user timezone
+        const { data: user } = await supabase
+            .from('users')
+            .select('timezone')
+            .eq('id', userId)
+            .single();
+        const tz = user?.timezone || 'Asia/Kolkata';
+
+        // Use meeting detector LLM
+        const { detectMeeting } = await import('../lib/meeting-detector');
+        const meeting = await detectMeeting(query, 'Me', tz);
+
+        if (!meeting.detected || meeting.confidence < 0.5) {
+            return "🤔 I couldn't find clear meeting details in your message. Try something like:\n\n• \"Schedule a call with Neha tomorrow at 3pm\"\n• \"Meeting with the team on Friday at 11am\"\n• \"Let's catch up on Monday 2pm IST\"";
+        }
+
+        // Format the time nicely
+        let startStr = '';
+        try {
+            const d = new Date(meeting.startTime);
+            startStr = d.toLocaleString('en-US', {
+                weekday: 'short', month: 'short', day: 'numeric',
+                hour: 'numeric', minute: '2-digit', hour12: true,
+            });
+        } catch { startStr = meeting.startTime; }
+
+        // Store in calendar_events table as tentative
+        const { error } = await supabase.from('calendar_events').insert({
+            user_id: userId,
+            title: meeting.title,
+            description: `Scheduled via Rememora bot`,
+            start_time: meeting.startTime,
+            end_time: meeting.endTime,
+            timezone: meeting.timezone,
+            participants: meeting.participants,
+            meeting_link: meeting.meetingLink,
+            location: meeting.location,
+            conversation_context: query,
+            key_topics: meeting.keyTopics,
+            status: 'tentative',
+        });
+
+        if (error) {
+            logger.error({ error }, 'Failed to store meeting');
+            return '❌ Failed to save the meeting. Please try again.';
+        }
+
+        let response = `📅 *Meeting Detected*\n\n*${meeting.title}*\n🕐 ${startStr}`;
+        if (meeting.timezone) response += ` ${meeting.timezone}`;
+        response += `\n⏱ ${meeting.duration || 30} minutes`;
+
+        if (meeting.participants.length > 0) {
+            response += `\n👥 ${meeting.participants.map(p => p.name).join(', ')}`;
+        }
+        if (meeting.meetingLink) response += `\n🔗 ${meeting.meetingLink}`;
+        if (meeting.location) response += `\n📍 ${meeting.location}`;
+
+        if (meeting.ambiguities.length > 0) {
+            response += `\n\n⚠️ ${meeting.ambiguities.join(', ')}`;
+        }
+
+        // Try to sync to Google Calendar
+        let synced = false;
+        try {
+            const { createCalendarEvent, isCalendarConnected } = await import('../lib/google-calendar');
+            const connected = await isCalendarConnected(supabase, userId);
+            if (connected) {
+                const eventId = await createCalendarEvent(supabase, userId, {
+                    title: meeting.title,
+                    description: `Scheduled via Rememora`,
+                    startTime: meeting.startTime,
+                    endTime: meeting.endTime,
+                    timezone: meeting.timezone,
+                    meetingLink: meeting.meetingLink,
+                    location: meeting.location,
+                    participants: meeting.participants,
+                });
+                if (eventId) {
+                    synced = true;
+                    // Update stored event with Google event ID and confirm
+                    await supabase
+                        .from('calendar_events')
+                        .update({ google_event_id: eventId, status: 'confirmed' })
+                        .eq('user_id', userId)
+                        .eq('status', 'tentative')
+                        .order('created_at', { ascending: false })
+                        .limit(1);
+                }
+            }
+        } catch (err) {
+            logger.warn({ err }, 'Google Calendar sync skipped');
+        }
+
+        response += synced
+            ? '\n\n✅ Added to your Google Calendar!'
+            : '\n\n💡 Connect Google Calendar in settings for auto-sync.\nReply *yes* to confirm this meeting.';
+
+        return response;
+    } catch (err) {
+        logger.error({ err }, 'Meeting handler failed');
+        return '❌ Something went wrong detecting the meeting. Please try again.';
+    }
+}
+
+// ================================================================
+// Reminder Handler — Parse & store reminder
+// ================================================================
+
+async function handleReminderBot(query: string, userId: string): Promise<string> {
+    try {
+        const { data: user } = await supabase
+            .from('users')
+            .select('timezone')
+            .eq('id', userId)
+            .single();
+        const tz = user?.timezone || 'Asia/Kolkata';
+
+        const { parseSmartReminder } = await import('../lib/smart-reminder');
+        const parsed = await parseSmartReminder(query, tz, 'Me');
+
+        if (parsed.confidence < 0.4) {
+            return "🤔 I wasn't sure how to set that reminder. Try something like:\n\n• \"Remind me to call Imran tomorrow at 3pm\"\n• \"If Tanmay doesn't reply in 48 hours, remind me\"\n• \"Remind me every Monday to review reports\"";
+        }
+
+        // Resolve conditional contact if needed
+        if (parsed.type === 'conditional' && parsed.conditionJson?.contactName) {
+            const { data: contacts } = await supabase
+                .from('contacts')
+                .select('wa_id')
+                .eq('user_id', userId)
+                .ilike('display_name', `%${parsed.conditionJson.contactName}%`)
+                .limit(1);
+
+            if (contacts && contacts.length > 0) {
+                parsed.conditionJson.contactWaId = contacts[0].wa_id;
+            }
+            if (!parsed.conditionJson.checkAfter) {
+                parsed.conditionJson.checkAfter = new Date().toISOString();
+            }
+        }
+
+        // Build insert data
+        const insertData: any = {
+            user_id: userId,
+            text: parsed.text,
+            trigger_type: parsed.type,
+            status: 'pending',
+            context_summary: parsed.contextSummary,
+            created_at: new Date().toISOString(),
+        };
+
+        if (parsed.type === 'time' && parsed.dueAt) {
+            insertData.due_at = parsed.dueAt;
+        } else if (parsed.type === 'conditional' && parsed.conditionJson) {
+            insertData.condition_json = parsed.conditionJson;
+            insertData.contact_wa_id = parsed.conditionJson.contactWaId;
+            const addHours = (h: number) => new Date(Date.now() + h * 3600000).toISOString();
+            insertData.due_at = addHours((parsed.conditionJson.waitHours || 24) + 1);
+        } else if (parsed.type === 'recurring' && parsed.recurrenceRule) {
+            insertData.recurrence_rule = parsed.recurrenceRule;
+            // Simple next-time calc: tomorrow 9am default
+            const next = new Date();
+            next.setDate(next.getDate() + 1);
+            next.setHours(9, 0, 0, 0);
+            insertData.due_at = next.toISOString();
+        }
+
+        const { error } = await supabase.from('reminders').insert(insertData);
+
+        if (error) {
+            logger.error({ error }, 'Failed to store reminder');
+            return '❌ Failed to create reminder. Please try again.';
+        }
+
+        // Format confirmation
+        if (parsed.type === 'time' && parsed.dueAt) {
+            let dueStr = '';
+            try {
+                const d = new Date(parsed.dueAt);
+                dueStr = d.toLocaleString('en-US', {
+                    weekday: 'short', month: 'short', day: 'numeric',
+                    hour: 'numeric', minute: '2-digit', hour12: true,
+                });
+            } catch { dueStr = parsed.dueAt; }
+            return `⏰ *Reminder set!*\n\n"${parsed.text}"\n📅 ${dueStr}`;
+        } else if (parsed.type === 'conditional') {
+            const contact = parsed.conditionJson?.contactName || 'them';
+            const hours = parsed.conditionJson?.waitHours || 24;
+            return `🔔 *Conditional reminder set!*\n\n"${parsed.text}"\n⏳ I'll remind you if ${contact} doesn't reply within ${hours} hours.`;
+        } else if (parsed.type === 'recurring') {
+            return `🔁 *Recurring reminder set!*\n\n"${parsed.text}"\n📅 Repeating based on: ${parsed.recurrenceRule || 'daily'}`;
+        }
+
+        return `✅ Reminder set: "${parsed.text}"`;
+    } catch (err) {
+        logger.error({ err }, 'Reminder handler failed');
+        return '❌ Something went wrong setting the reminder. Please try again.';
+    }
+}
+
+// ================================================================
+// Calendar Query Handler — Show upcoming events
+// ================================================================
+
+async function handleCalendarBot(query: string, userId: string): Promise<string> {
+    try {
+        // First check local calendar_events table
+        const { data: localEvents } = await supabase
+            .from('calendar_events')
+            .select('title, start_time, end_time, timezone, status, meeting_link')
+            .eq('user_id', userId)
+            .in('status', ['confirmed', 'tentative'])
+            .gt('start_time', new Date().toISOString())
+            .order('start_time', { ascending: true })
+            .limit(10);
+
+        // Try Google Calendar too
+        let googleEvents: any[] = [];
+        try {
+            const { getUpcomingEvents, isCalendarConnected } = await import('../lib/google-calendar');
+            const connected = await isCalendarConnected(supabase, userId);
+            if (connected) {
+                googleEvents = await getUpcomingEvents(supabase, userId, 10);
+            }
+        } catch (err) {
+            logger.warn({ err }, 'Google Calendar fetch skipped');
+        }
+
+        // Merge and deduplicate (prefer Google events if both exist)
+        const allEvents: Array<{ title: string; startTime: string; endTime?: string; source: string; link?: string }> = [];
+
+        const googleIds = new Set(googleEvents.map(e => e.title?.toLowerCase()));
+
+        for (const e of (localEvents || [])) {
+            if (!googleIds.has(e.title?.toLowerCase())) {
+                allEvents.push({
+                    title: e.title,
+                    startTime: e.start_time,
+                    endTime: e.end_time,
+                    source: 'rememora',
+                    link: e.meeting_link,
+                });
+            }
+        }
+
+        for (const e of googleEvents) {
+            allEvents.push({
+                title: e.title,
+                startTime: e.startTime,
+                endTime: e.endTime,
+                source: 'google',
+                link: e.link,
+            });
+        }
+
+        // Sort by start time
+        allEvents.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
+        if (allEvents.length === 0) {
+            const hasGoogle = googleEvents !== undefined;
+            return hasGoogle
+                ? "📅 No upcoming events on your calendar. You're all clear!"
+                : "📅 No upcoming events found.\n\n💡 Connect Google Calendar in settings to see all your events here.";
+        }
+
+        let response = '📅 *Your Upcoming Events:*\n\n';
+        allEvents.slice(0, 8).forEach((e, i) => {
+            let timeStr = '';
+            try {
+                const d = new Date(e.startTime);
+                timeStr = d.toLocaleString('en-US', {
+                    weekday: 'short', month: 'short', day: 'numeric',
+                    hour: 'numeric', minute: '2-digit', hour12: true,
+                });
+            } catch { timeStr = e.startTime; }
+
+            const src = e.source === 'google' ? ' 🔄' : '';
+            response += `${i + 1}. *${e.title}*${src}\n   🕐 ${timeStr}`;
+            if (e.link) response += `\n   🔗 ${e.link}`;
+            response += '\n\n';
+        });
+
+        if (googleEvents.length === 0) {
+            response += '💡 Connect Google Calendar for complete event sync.';
+        }
+
+        return response.trim();
+    } catch (err) {
+        logger.error({ err }, 'Calendar query handler failed');
+        return '❌ Something went wrong fetching your calendar. Please try again.';
+    }
+}
+
+// ================================================================
+// Confirm Pending Meeting — Called when user replies "yes"
+// ================================================================
+
+async function confirmPendingMeeting(userId: string, remoteJid: string): Promise<boolean> {
+    // Find most recent tentative meeting
+    const { data: pendingMeeting } = await supabase
+        .from('calendar_events')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('status', 'tentative')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+    if (!pendingMeeting) return false;
+
+    // Update to confirmed
+    await supabase
+        .from('calendar_events')
+        .update({ status: 'confirmed', updated_at: new Date().toISOString() })
+        .eq('id', pendingMeeting.id);
+
+    // Try Google Calendar sync
+    let synced = false;
+    try {
+        const { createCalendarEvent, isCalendarConnected } = await import('../lib/google-calendar');
+        const connected = await isCalendarConnected(supabase, userId);
+        if (connected) {
+            const eventId = await createCalendarEvent(supabase, userId, {
+                title: pendingMeeting.title,
+                description: pendingMeeting.description,
+                startTime: pendingMeeting.start_time,
+                endTime: pendingMeeting.end_time,
+                timezone: pendingMeeting.timezone,
+                meetingLink: pendingMeeting.meeting_link,
+                location: pendingMeeting.location,
+                participants: pendingMeeting.participants,
+            });
+            if (eventId) {
+                await supabase
+                    .from('calendar_events')
+                    .update({ google_event_id: eventId })
+                    .eq('id', pendingMeeting.id);
+                synced = true;
+            }
+        }
+    } catch (err) {
+        logger.warn({ err }, 'Google Calendar sync on confirm failed');
+    }
+
+    let startStr = '';
+    try {
+        startStr = new Date(pendingMeeting.start_time).toLocaleString('en-US', {
+            weekday: 'short', month: 'short', day: 'numeric',
+            hour: 'numeric', minute: '2-digit', hour12: true,
+        });
+    } catch { startStr = pendingMeeting.start_time; }
+
+    const syncMsg = synced
+        ? '✅ Also synced to Google Calendar!'
+        : '💡 Connect Google Calendar in settings for auto-sync.';
+
+    if (sock) {
+        await sock.sendMessage(remoteJid, {
+            text: `✅ *Meeting confirmed!*\n\n*${pendingMeeting.title}*\n🕐 ${startStr}\n\n${syncMsg}\n\nI'll send you a reminder 20 minutes before.`,
+        });
+    }
+
+    return true;
 }
 
 async function handleSummarizeBot(query: string, userId: string, intent: BotIntent): Promise<string> {
@@ -928,6 +1377,131 @@ async function handleMessage(msg: proto.IWebMessageInfo, isHistory = false) {
             logger.error({ err, messageId: stored.id }, 'Failed to generate embedding');
         }
     }
+
+    // ---- Real-time auto-detection (commitments & meetings) ----
+    // Run in background for non-history, non-bot messages with meaningful text
+    if (text && text.length > 15 && stored && !isHistory && BOT_ENABLED) {
+        runAutoDetection(userId, text, chatId, contactId, senderPhone, msg.pushName || senderPhone, msg.key.fromMe || false).catch(err => {
+            logger.warn({ err }, 'Auto-detection background task failed');
+        });
+    }
+}
+
+// ================================================================
+// Real-time Auto-Detection (commitments & meetings in background)
+// ================================================================
+
+async function runAutoDetection(
+    userId: string,
+    text: string,
+    chatId: string,
+    contactId: string,
+    senderPhone: string,
+    senderName: string,
+    isFromMe: boolean
+) {
+    // Auto-detect commitments
+    try {
+        const { detectCommitment } = await import('../lib/commitment-detector');
+        const commitment = await detectCommitment(text, senderName, isFromMe);
+
+        if (commitment.detected && commitment.confidence >= 0.75) {
+            // Check for duplicates
+            const { data: existing } = await supabase
+                .from('commitments')
+                .select('id')
+                .eq('user_id', userId)
+                .eq('text', commitment.text)
+                .limit(1);
+
+            if (!existing || existing.length === 0) {
+                await supabase.from('commitments').insert({
+                    user_id: userId,
+                    chat_id: chatId,
+                    contact_id: contactId,
+                    text: commitment.text,
+                    committed_by: commitment.committedBy,
+                    priority: commitment.priority,
+                    status: 'pending',
+                    due_date: commitment.dueDate,
+                    created_at: new Date().toISOString(),
+                });
+                logger.info({ text: commitment.text.substring(0, 50) }, 'Auto-detected commitment');
+
+                // Notify user in self-chat if it's their own commitment
+                if ((commitment.committedBy === 'me' || commitment.committedBy === 'mutual') && sock && ownerJid) {
+                    const dueStr = commitment.dueDate
+                        ? `\n📅 Due: ${new Date(commitment.dueDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`
+                        : '';
+                    const priorityStr = commitment.priority === 'high' ? '\n🔴 High priority' : '';
+                    await sock.sendMessage(ownerJid, {
+                        text: `📌 *Commitment auto-detected*\n\n"${commitment.text}"${dueStr}${priorityStr}\n\n_From chat with ${senderName}_`,
+                    });
+                }
+            }
+        }
+    } catch (err) {
+        logger.warn({ err }, 'Commitment auto-detection failed');
+    }
+
+    // Auto-detect meetings
+    try {
+        const { detectMeeting } = await import('../lib/meeting-detector');
+        const { data: user } = await supabase
+            .from('users')
+            .select('timezone')
+            .eq('id', userId)
+            .single();
+        const tz = user?.timezone || 'Asia/Kolkata';
+
+        const meeting = await detectMeeting(text, senderName, tz);
+
+        if (meeting.detected && meeting.confidence >= 0.7) {
+            // Check if we already have a similar meeting around that time
+            const { data: existing } = await supabase
+                .from('calendar_events')
+                .select('id')
+                .eq('user_id', userId)
+                .eq('title', meeting.title)
+                .limit(1);
+
+            if (!existing || existing.length === 0) {
+                await supabase.from('calendar_events').insert({
+                    user_id: userId,
+                    chat_id: chatId,
+                    title: meeting.title,
+                    description: `Auto-detected from conversation with ${senderName}`,
+                    start_time: meeting.startTime,
+                    end_time: meeting.endTime,
+                    timezone: meeting.timezone,
+                    participants: meeting.participants,
+                    meeting_link: meeting.meetingLink,
+                    location: meeting.location,
+                    conversation_context: text,
+                    key_topics: meeting.keyTopics,
+                    status: 'tentative',
+                });
+                logger.info({ title: meeting.title }, 'Auto-detected meeting');
+
+                // Notify user
+                if (sock && ownerJid) {
+                    let startStr = '';
+                    try {
+                        startStr = new Date(meeting.startTime).toLocaleString('en-US', {
+                            weekday: 'short', month: 'short', day: 'numeric',
+                            hour: 'numeric', minute: '2-digit', hour12: true,
+                        });
+                    } catch { startStr = meeting.startTime; }
+
+                    await sock.sendMessage(ownerJid, {
+                        text: `📅 *Meeting auto-detected*\n\n*${meeting.title}*\n🕐 ${startStr}\n👥 ${meeting.participants.map(p => p.name).join(', ')}\n\n_From chat with ${senderName}_\n\nReply *yes* to add to your calendar.`,
+                    });
+                }
+            }
+        }
+    } catch (err) {
+        logger.warn({ err }, 'Meeting auto-detection failed');
+    }
 }
 
 // ================================================================
@@ -1029,6 +1603,19 @@ async function main() {
     app.listen(PORT, '0.0.0.0', () => logger.info('Server on port ' + PORT + ' - QR at /qr'));
     await startBaileys();
 }
+
+// Graceful shutdown — clean up socket on SIGTERM/SIGINT (e.g. Railway redeploy)
+function gracefulShutdown(signal: string) {
+    logger.info({ signal }, 'Received shutdown signal, cleaning up...');
+    if (sock) {
+        try { sock.end(undefined); } catch {}
+        sock = null;
+    }
+    connectionStatus = 'disconnected';
+    process.exit(0);
+}
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 main().catch(err => {
     logger.error({ err }, 'Fatal');

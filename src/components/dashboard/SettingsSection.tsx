@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import {
   Users, Bell, Shield, Download, Loader2, ToggleRight, ToggleLeft,
-  X, Plus, Wifi, WifiOff, RefreshCw, Smartphone, QrCode, CheckCircle2, LogOut
+  X, Plus, Wifi, WifiOff, RefreshCw, Smartphone, QrCode, CheckCircle2, LogOut,
+  Calendar, Link2, Unlink
 } from 'lucide-react';
 
 const BRIDGE_URL = process.env.NEXT_PUBLIC_BRIDGE_URL || 'https://chatvault-ai-production.up.railway.app';
@@ -36,12 +37,27 @@ export default function SettingsSection() {
   const [waStatus, setWaStatus] = useState<WhatsAppStatus>({ connected: false, status: 'disconnected' });
   const [waLoading, setWaLoading] = useState(true);
   const [showQR, setShowQR] = useState(false);
+  const [googleCalConnected, setGoogleCalConnected] = useState(false);
+  const [googleCalLoading, setGoogleCalLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     loadSettings();
     checkWhatsApp();
+    checkGoogleCalendar();
     const interval = setInterval(checkWhatsApp, 5000);
     return () => clearInterval(interval);
+  }, []);
+
+  // Check URL params for Google auth callback status
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('google') === 'connected') {
+      setGoogleCalConnected(true);
+      setGoogleCalLoading(false);
+      // Clean up the URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
   }, []);
 
   async function checkWhatsApp() {
@@ -64,6 +80,55 @@ export default function SettingsSection() {
       setWaStatus({ connected: false, status: 'error' });
     }
     setWaLoading(false);
+  }
+
+  async function checkGoogleCalendar() {
+    setGoogleCalLoading(true);
+    try {
+      const session = await supabase.auth.getSession();
+      const uid = session.data.session?.user?.id;
+      setUserId(uid || null);
+      if (!uid) { setGoogleCalLoading(false); return; }
+
+      // Check if user has google tokens stored
+      const res = await fetch(`/api/settings`, {
+        headers: { 'Authorization': 'Bearer ' + (session.data.session?.access_token || '') },
+      });
+      const data = await res.json();
+      setGoogleCalConnected(!!data.profile?.googleCalendarConnected);
+    } catch (err) {
+      console.error('Google Calendar check failed:', err);
+    }
+    setGoogleCalLoading(false);
+  }
+
+  async function connectGoogleCalendar() {
+    if (!userId) {
+      const session = await supabase.auth.getSession();
+      const uid = session.data.session?.user?.id;
+      if (!uid) return;
+      setUserId(uid);
+      window.location.href = `/api/auth/google?userId=${uid}`;
+    } else {
+      window.location.href = `/api/auth/google?userId=${userId}`;
+    }
+  }
+
+  async function disconnectGoogleCalendar() {
+    try {
+      const session = await supabase.auth.getSession();
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + (session.data.session?.access_token || ''),
+        },
+        body: JSON.stringify({ disconnectGoogleCalendar: true }),
+      });
+      setGoogleCalConnected(false);
+    } catch (err) {
+      console.error('Failed to disconnect Google Calendar:', err);
+    }
   }
 
   async function loadSettings() {
@@ -261,6 +326,53 @@ export default function SettingsSection() {
           )}
         </div>
 
+        {/* Google Calendar Integration */}
+        <div className="bg-white rounded-xl border border-surface-200 p-6">
+          <h3 className="font-semibold text-surface-900 mb-4 flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-brand-600" />
+            Google Calendar
+          </h3>
+
+          {googleCalLoading ? (
+            <div className="flex items-center justify-center py-6">
+              <Loader2 className="w-5 h-5 text-brand-600 animate-spin" />
+              <span className="ml-2 text-sm text-surface-500">Checking connection...</span>
+            </div>
+          ) : googleCalConnected ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 p-4 bg-brand-50 rounded-lg border border-brand-200">
+                <CheckCircle2 className="w-6 h-6 text-brand-600 flex-shrink-0" />
+                <div>
+                  <p className="font-medium text-brand-600">Google Calendar Connected</p>
+                  <p className="text-sm text-brand-600">
+                    Meetings detected in chats will sync to your calendar
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={disconnectGoogleCalendar}
+                className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              >
+                <Unlink className="w-4 h-4" />
+                Disconnect Google Calendar
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-surface-600">
+                Connect your Google Calendar to automatically create events when meetings are detected in your WhatsApp conversations.
+              </p>
+              <button
+                onClick={connectGoogleCalendar}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
+              >
+                <Link2 className="w-5 h-5" />
+                Connect Google Calendar
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* Profile Section */}
         {settings && (
           <>
@@ -300,12 +412,15 @@ export default function SettingsSection() {
                     className="w-full mt-1 px-3 py-2 rounded-lg border border-surface-200 text-surface-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
                   >
                     <option>UTC</option>
+                    <option>Asia/Kolkata</option>
                     <option>US/Eastern</option>
                     <option>US/Central</option>
                     <option>US/Mountain</option>
                     <option>US/Pacific</option>
                     <option>Europe/London</option>
                     <option>Europe/Paris</option>
+                    <option>Asia/Dubai</option>
+                    <option>Asia/Singapore</option>
                     <option>Asia/Tokyo</option>
                     <option>Asia/Hong_Kong</option>
                     <option>Australia/Sydney</option>
