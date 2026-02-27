@@ -242,8 +242,8 @@ export default function MessagesSection() {
       .from('messages')
       .select('*')
       .eq('user_id', userId)
-      .ilike('content', '%' + searchQuery + '%')
-      .order('created_at', { ascending: false })
+      .ilike('text_content', '%' + searchQuery + '%')
+      .order('timestamp', { ascending: false })
       .limit(50);
     setSearchResults(data || []);
   }
