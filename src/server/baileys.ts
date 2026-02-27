@@ -419,14 +419,16 @@ let keepaliveInterval: NodeJS.Timeout | null = null;
 
 function startKeepaliveTimer() {
     // Clear any existing timer
-    if (keepaliveInterval) clearInterval(keepaliveInterval);
+    stopKeepaliveTimer();
 
     keepaliveInterval = setInterval(() => {
+        // Only trigger if we've been "connected" for a while with no events
         if (connectionStatus !== 'connected' || !lastEventAt) return;
 
         const staleMs = Date.now() - lastEventAt.getTime();
         if (staleMs > STALE_TIMEOUT_MS) {
             logger.warn({ staleMs, lastEventAt: lastEventAt.toISOString(), thresholdMs: STALE_TIMEOUT_MS }, 'Connection appears stale — no events received. Auto-reconnecting...');
+            stopKeepaliveTimer();
             // Soft reconnect: close socket, restart without clearing auth
             if (sock) {
                 try { sock.end(undefined); } catch (_) {}
@@ -435,13 +437,16 @@ function startKeepaliveTimer() {
             connectionStatus = 'disconnected';
             reconnectAttempts = 0;
             lastEventAt = null;
-            if (keepaliveInterval) clearInterval(keepaliveInterval);
-            keepaliveInterval = null;
             setTimeout(startBaileys, 2000);
-        } else {
-            logger.debug({ staleMs, lastEventAt: lastEventAt.toISOString() }, 'Keepalive check — connection healthy');
         }
-    }, 60_000); // Check every 60 seconds
+    }, 2 * 60_000); // Check every 2 minutes (less aggressive)
+}
+
+function stopKeepaliveTimer() {
+    if (keepaliveInterval) {
+        clearInterval(keepaliveInterval);
+        keepaliveInterval = null;
+    }
 }
 
 async function startBaileys() {
@@ -500,6 +505,7 @@ async function startBaileys() {
 
         if (connection === 'close') {
             connectionStatus = 'disconnected';
+            stopKeepaliveTimer(); // Don't fight with Baileys' own reconnect
             const code = (lastDisconnect?.error as Boom)?.output?.statusCode;
             if (code !== DisconnectReason.loggedOut) {
                 reconnectAttempts++;
