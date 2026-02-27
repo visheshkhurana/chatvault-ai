@@ -157,9 +157,9 @@ export default function MessagesSection() {
       .order('last_message_at', { ascending: false });
 
     // For chats whose title is just a phone number, try to resolve a real name
-    // from the contacts table or most recent message sender_name
+    // from the contacts table (single batch query — no N+1 loops)
     const mapped: Chat[] = [];
-    const phoneTitleChats: { index: number; waJid: string; chatId: string }[] = [];
+    const phoneTitleChats: { index: number; waJid: string }[] = [];
 
     for (const row of (data || [])) {
       const title = row.title || row.wa_chat_id || '';
@@ -172,13 +172,12 @@ export default function MessagesSection() {
         wa_chat_id: row.wa_chat_id || '',
       });
       if (isPhoneTitle && row.chat_type !== 'group') {
-        phoneTitleChats.push({ index: mapped.length - 1, waJid: row.wa_chat_id || '', chatId: row.id });
+        phoneTitleChats.push({ index: mapped.length - 1, waJid: row.wa_chat_id || '' });
       }
     }
 
-    // Batch-resolve names for chats with phone-number titles
+    // Batch-resolve names from contacts table (single query)
     if (phoneTitleChats.length > 0) {
-      // Strategy 1: Check contacts table for display_name by wa_id
       const waJids = phoneTitleChats.map(c => c.waJid).filter(Boolean);
       if (waJids.length > 0) {
         const { data: contacts } = await supabase
@@ -197,30 +196,6 @@ export default function MessagesSection() {
         for (const pc of phoneTitleChats) {
           const name = contactMap.get(pc.waJid);
           if (name) mapped[pc.index].name = name;
-        }
-      }
-
-      // Strategy 2: For still-unresolved chats, use sender_name from most recent non-self message
-      const unresolvedChats = phoneTitleChats.filter(pc => {
-        const n = mapped[pc.index].name;
-        return /^\d{7,}$/.test(n.replace(/\D/g, ''));
-      });
-
-      for (const pc of unresolvedChats) {
-        const { data: recentMsg } = await supabase
-          .from('messages')
-          .select('sender_name')
-          .eq('chat_id', pc.chatId)
-          .eq('is_from_me', false)
-          .not('sender_name', 'is', null)
-          .order('timestamp', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (recentMsg?.sender_name) {
-          const sn = recentMsg.sender_name;
-          const isRealName = sn && !/^\d{7,}$/.test(sn.replace(/\D/g, ''));
-          if (isRealName) mapped[pc.index].name = sn;
         }
       }
     }
