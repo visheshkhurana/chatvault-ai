@@ -155,11 +155,15 @@ export default function DashboardPage() {
         if (res.ok) {
           const data = await res.json();
           setBridgeStatus({ connected: data.connected, phone: data.phone, name: data.name });
+        } else {
+          console.warn('[Bridge] Status check failed:', res.status);
         }
-      } catch {}
+      } catch (err) {
+        console.warn('[Bridge] Status check error (CORS or network):', err);
+      }
     };
     checkBridge();
-    const interval = setInterval(checkBridge, 30000);
+    const interval = setInterval(checkBridge, 10000); // Poll every 10s for faster state sync
     return () => clearInterval(interval);
   }, []);
 

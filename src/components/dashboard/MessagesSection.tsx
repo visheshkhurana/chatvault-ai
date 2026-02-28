@@ -208,9 +208,12 @@ export default function MessagesSection() {
   }
 
   async function loadMessages(chatId: string) {
+    const userId = await getInternalUserId();
+    if (!userId) return;
     const { data } = await supabase
       .from('messages')
       .select('*')
+      .eq('user_id', userId)
       .eq('chat_id', chatId)
       .order('timestamp', { ascending: true })
       .limit(100);
@@ -224,6 +227,7 @@ export default function MessagesSection() {
     const { data } = await supabase
       .from('attachments')
       .select('*, transcript, messages(sender_name, timestamp, chat_id)')
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(300);
     setAttachments(data || []);

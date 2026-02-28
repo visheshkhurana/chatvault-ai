@@ -79,9 +79,9 @@ export default function HomeSection({ onNavigate }: HomeProps) {
 
     const [chatsRes, msgsRes, contactsRes, filesRes, remindersRes, commitmentsRes, upcomingRes] = await Promise.all([
       supabase.from('chats').select('id', { count: 'exact', head: true }).eq('user_id', userId),
-      supabase.from('messages').select('id', { count: 'exact', head: true }),
+      supabase.from('messages').select('id', { count: 'exact', head: true }).eq('user_id', userId),
       supabase.from('contacts').select('id', { count: 'exact', head: true }).eq('user_id', userId),
-      supabase.from('attachments').select('id', { count: 'exact', head: true }),
+      supabase.from('attachments').select('id', { count: 'exact', head: true }).eq('user_id', userId),
       supabase.from('reminders').select('*').eq('user_id', userId).eq('status', 'active').lt('remind_at', now),
       supabase.from('commitments').select('*').eq('user_id', userId).eq('status', 'pending'),
       supabase.from('reminders').select('*').eq('user_id', userId).eq('status', 'active').gte('remind_at', now).order('remind_at').limit(5),
