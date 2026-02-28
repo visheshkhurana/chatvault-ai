@@ -57,6 +57,10 @@ function logDebugEvent(event: string, data: any) {
     if (debugEvents.length > 50) debugEvents.shift();
 }
 
+// Track bot-sent message IDs to prevent infinite loop (bot responding to its own messages)
+const botSentMessageIds = new Set<string>();
+const BOT_SENT_MAX_SIZE = 100;
+
 let syncStats = {
     chats: 0,
     messages: 0,
@@ -232,7 +236,8 @@ app.post('/send', async (req: any, res: any) => {
     }
     try {
         const jid = phone.includes('@') ? phone : `${phone}@s.whatsapp.net`;
-        await sock.sendMessage(jid, { text: message });
+        const sentMsg = await sock.sendMessage(jid, { text: message });
+        if (sentMsg?.key?.id) botSentMessageIds.add(sentMsg.key.id);
         res.json({ ok: true });
     } catch (err: any) {
         logger.error({ err }, 'Send message failed');
@@ -625,8 +630,9 @@ async function startBaileys() {
             try {
                 await handleMessage(msg, isHistory);
             } catch (err) {
+                const errMsg = err instanceof Error ? err.message : JSON.stringify(err);
                 logger.error({ err, id: msg.key.id }, 'Message store error');
-                logDebugEvent('handleMessage-error', { id: msg.key.id, error: String(err), remoteJid: msg.key.remoteJid });
+                logDebugEvent('handleMessage-error', { id: msg.key.id, error: errMsg, remoteJid: msg.key.remoteJid });
             }
 
             // Chatbot: check if this is a bot query (runs independently of message storage)
@@ -635,6 +641,11 @@ async function startBaileys() {
             // For append during active history sync: skip unless it's a recent self-chat
             try {
                 if (BOT_ENABLED) {
+                    // Skip messages that the bot itself sent (prevent infinite loop)
+                    const msgId = msg.key.id || '';
+                    if (botSentMessageIds.has(msgId)) {
+                        logDebugEvent('bot-skip-own', { msgId, remoteJid: msg.key.remoteJid });
+                    } else {
                     const isSelfMsg = msg.key.fromMe && (
                         msg.key.remoteJid === ownerJid ||
                         msg.key.remoteJid?.split('@')[0]?.split(':')[0] === ownerPhone ||
@@ -647,6 +658,7 @@ async function startBaileys() {
                     if (willTrigger) {
                         logger.info({ fromMe: msg.key.fromMe, isSelfMsg, type, msgAge: Math.round(msgAge), remoteJid: msg.key.remoteJid, ownerLid, ownerJid }, 'Triggering bot check');
                         await maybeHandleBotQuery(msg);
+                    }
                     }
                 }
             } catch (err) {
@@ -757,13 +769,21 @@ async function maybeHandleBotQuery(msg: proto.IWebMessageInfo) {
         await sock.sendPresenceUpdate('composing', remoteJid);
         const userId = await ensureOwnerUser();
         const response = await processBotQuery(queryText, userId);
-        await sock.sendMessage(remoteJid, { text: response });
+        const sentMsg = await sock.sendMessage(remoteJid, { text: response });
+        if (sentMsg?.key?.id) {
+            botSentMessageIds.add(sentMsg.key.id);
+            if (botSentMessageIds.size > BOT_SENT_MAX_SIZE) {
+                const first = botSentMessageIds.values().next().value;
+                if (first) botSentMessageIds.delete(first);
+            }
+        }
         syncStats.botResponses++;
-        logger.info({ responseLength: response.length }, 'Bot response sent');
+        logger.info({ responseLength: response.length, sentMsgId: sentMsg?.key?.id }, 'Bot response sent');
     } catch (err) {
         logger.error({ err }, 'Bot query processing failed');
         try {
-            await sock.sendMessage(remoteJid, { text: '\u26a0\ufe0f Sorry, I encountered an error processing your request. Please try again.' });
+            const errMsg = await sock.sendMessage(remoteJid, { text: '\u26a0\ufe0f Sorry, I encountered an error processing your request. Please try again.' });
+            if (errMsg?.key?.id) botSentMessageIds.add(errMsg.key.id);
         } catch {}
     } finally {
         try { await sock.sendPresenceUpdate('available', remoteJid); } catch {}
@@ -1275,9 +1295,10 @@ async function confirmPendingMeeting(userId: string, remoteJid: string): Promise
         : '💡 Connect Google Calendar in settings for auto-sync.';
 
     if (sock) {
-        await sock.sendMessage(remoteJid, {
+        const sentMsg = await sock.sendMessage(remoteJid, {
             text: `✅ *Meeting confirmed!*\n\n*${pendingMeeting.title}*\n🕐 ${startStr}\n\n${syncMsg}\n\nI'll send you a reminder 20 minutes before.`,
         });
+        if (sentMsg?.key?.id) botSentMessageIds.add(sentMsg.key.id);
     }
 
     return true;
