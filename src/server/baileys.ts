@@ -621,13 +621,19 @@ async function startBaileys() {
         }
 
         for (const msg of messages) {
+            // Store message in DB (independent of bot check)
             try {
                 await handleMessage(msg, isHistory);
+            } catch (err) {
+                logger.error({ err, id: msg.key.id }, 'Message store error');
+                logDebugEvent('handleMessage-error', { id: msg.key.id, error: String(err), remoteJid: msg.key.remoteJid });
+            }
 
-                // Chatbot: check if this is a bot query
-                // For self-chat (fromMe): always trigger bot regardless of sync state
-                // For notify (real-time incoming from others): always trigger
-                // For append during active history sync: skip unless it's a recent self-chat
+            // Chatbot: check if this is a bot query (runs independently of message storage)
+            // For self-chat (fromMe): always trigger bot regardless of sync state
+            // For notify (real-time incoming from others): always trigger
+            // For append during active history sync: skip unless it's a recent self-chat
+            try {
                 if (BOT_ENABLED) {
                     const isSelfMsg = msg.key.fromMe && (
                         msg.key.remoteJid === ownerJid ||
@@ -644,7 +650,8 @@ async function startBaileys() {
                     }
                 }
             } catch (err) {
-                logger.error({ err, id: msg.key.id }, 'Message error');
+                logger.error({ err, id: msg.key.id }, 'Bot check error');
+                logDebugEvent('bot-check-error', { id: msg.key.id, error: String(err), remoteJid: msg.key.remoteJid });
             }
         }
     });
