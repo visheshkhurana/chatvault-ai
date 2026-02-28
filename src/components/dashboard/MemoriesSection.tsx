@@ -87,7 +87,7 @@ export default function MemoriesSection() {
 
     if (memories.length === 0) {
         return (
-            <div className="bg-white rounded-xl border border-surface-200 p-12 text-center">
+            <div className="bg-white rounded-xl border border-surface-200 p-6 sm:p-12 text-center">
                 <Clock className="w-8 h-8 text-surface-300 mx-auto mb-3" />
                 <p className="text-surface-600 font-medium">No memories for today</p>
                 <p className="text-surface-400 text-sm mt-1">Check back tomorrow!</p>
@@ -131,7 +131,7 @@ export default function MemoriesSection() {
                                     </div>
                                     <button
                                         onClick={() => dismissMemory(memory.id)}
-                                        className="flex-shrink-0 ml-2 p-1.5 hover:bg-surface-100 rounded-lg transition-colors"
+                                        className="flex-shrink-0 ml-2 p-2 hover:bg-surface-100 rounded-lg transition-colors"
                                         title="Dismiss"
                                     >
                                         <X className="w-4 h-4 text-surface-400 hover:text-surface-600" />

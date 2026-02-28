@@ -213,7 +213,7 @@ export default function SharedSpacesSection() {
 
             {/* Spaces List */}
             {spaces.length === 0 ? (
-                <div className="bg-white rounded-xl border border-surface-200 p-12 text-center">
+                <div className="bg-white rounded-xl border border-surface-200 p-6 sm:p-12 text-center">
                     <Users className="w-8 h-8 text-surface-300 mx-auto mb-3" />
                     <p className="text-surface-600 font-medium">No shared spaces yet</p>
                     <p className="text-surface-400 text-sm mt-1">Create a space or join one with an invite code</p>
@@ -238,7 +238,7 @@ export default function SharedSpacesSection() {
                                         e.stopPropagation();
                                         deleteSpace(space.id);
                                     }}
-                                    className="p-1 hover:bg-red-50 rounded-lg transition-colors"
+                                    className="p-2 hover:bg-red-50 rounded-lg transition-colors"
                                 >
                                     <Trash2 className="w-4 h-4 text-red-600" />
                                 </button>

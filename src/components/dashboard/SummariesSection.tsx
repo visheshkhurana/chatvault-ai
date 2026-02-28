@@ -80,7 +80,7 @@ export default function SummariesSection() {
 
     return (
           <div>
-                <div className="flex items-center gap-4 mb-6">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mb-6">
                         <select
                                     value={selectedChatForSummary}
                                     onChange={(e: any) => setSelectedChatForSummary(e.target.value)}

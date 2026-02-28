@@ -68,7 +68,7 @@ export default function WeeklyRecapSection() {
 
     if (!latestRecap) {
         return (
-            <div className="bg-white rounded-xl border border-surface-200 p-12 text-center">
+            <div className="bg-white rounded-xl border border-surface-200 p-6 sm:p-12 text-center">
                 <BarChart3 className="w-8 h-8 text-surface-300 mx-auto mb-3" />
                 <p className="text-surface-600 font-medium">No weekly recap available yet</p>
                 <p className="text-surface-400 text-sm mt-1">Check back when you have more messages</p>
@@ -80,7 +80,7 @@ export default function WeeklyRecapSection() {
         <div className="space-y-6">
             {/* Latest Recap */}
             <div className="bg-gradient-to-br from-brand-50 to-brand-100 rounded-xl border border-brand-200 p-6">
-                <div className="flex items-start justify-between mb-4">
+                <div className="flex items-start justify-between gap-3 mb-4">
                     <div>
                         <h2 className="text-xl font-bold text-brand-900">This Week's Recap</h2>
                         <p className="text-sm text-brand-700 mt-1">

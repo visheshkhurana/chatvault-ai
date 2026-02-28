@@ -90,7 +90,7 @@ export default function EmotionalInsightsSection() {
 
     if (!insights) {
         return (
-            <div className="bg-white rounded-xl border border-surface-200 p-12 text-center">
+            <div className="bg-white rounded-xl border border-surface-200 p-6 sm:p-12 text-center">
                 <Heart className="w-8 h-8 text-surface-300 mx-auto mb-3" />
                 <p className="text-surface-600 font-medium">No emotional insights yet</p>
                 <p className="text-surface-400 text-sm mt-1">More data will help us understand your relationships</p>

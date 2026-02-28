@@ -143,7 +143,7 @@ export default function BirthdaySection() {
                         placeholder="Name..."
                         className="w-full px-3 py-2 rounded-lg border border-surface-200 text-sm bg-white"
                     />
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <input
                             type="date"
                             value={formData.date}
@@ -177,7 +177,7 @@ export default function BirthdaySection() {
             )}
 
             {entries.length === 0 ? (
-                <div className="bg-white rounded-xl border border-surface-200 p-12 text-center">
+                <div className="bg-white rounded-xl border border-surface-200 p-6 sm:p-12 text-center">
                     <Calendar className="w-8 h-8 text-surface-300 mx-auto mb-3" />
                     <p className="text-surface-600 font-medium">No dates added yet</p>
                     <p className="text-surface-400 text-sm mt-1">Add birthdays and anniversaries to get reminders</p>
@@ -210,7 +210,7 @@ export default function BirthdaySection() {
                                             </div>
                                             <button
                                                 onClick={() => deleteEntry(entry.id)}
-                                                className="p-1 hover:bg-red-50 rounded-lg transition-colors"
+                                                className="p-2 hover:bg-red-50 rounded-lg transition-colors"
                                             >
                                                 <Trash2 className="w-4 h-4 text-red-600" />
                                             </button>
@@ -226,7 +226,7 @@ export default function BirthdaySection() {
                                         <div className="flex gap-2">
                                             <button
                                                 onClick={() => toggleReminder(entry.id, entry.reminder_enabled)}
-                                                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                                className={`flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
                                                     entry.reminder_enabled
                                                         ? 'bg-blue-50 text-blue-700'
                                                         : 'bg-surface-100 text-surface-700 hover:bg-surface-200'
@@ -268,7 +268,7 @@ export default function BirthdaySection() {
                                             </div>
                                             <button
                                                 onClick={() => deleteEntry(entry.id)}
-                                                className="p-1 hover:bg-red-50 rounded-lg transition-colors"
+                                                className="p-2 hover:bg-red-50 rounded-lg transition-colors"
                                             >
                                                 <Trash2 className="w-4 h-4 text-red-600" />
                                             </button>
@@ -276,7 +276,7 @@ export default function BirthdaySection() {
                                         <div className="flex gap-2">
                                             <button
                                                 onClick={() => toggleReminder(entry.id, entry.reminder_enabled)}
-                                                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                                className={`flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
                                                     entry.reminder_enabled
                                                         ? 'bg-blue-50 text-blue-700'
                                                         : 'bg-surface-100 text-surface-700 hover:bg-surface-200'

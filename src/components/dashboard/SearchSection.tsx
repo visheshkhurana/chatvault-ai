@@ -83,7 +83,7 @@ export default function SearchSection() {
     return (
         <div>
             <form onSubmit={handleSearch} className="mb-8">
-                <div className="flex gap-4">
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                     <div className="flex-1 relative">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-400" />
                         <input
@@ -105,7 +105,7 @@ export default function SearchSection() {
                 </div>
 
                 {/* Filters */}
-                <div className="flex gap-4 mt-4">
+                <div className="flex flex-wrap gap-3 sm:gap-4 mt-4">
                     <select
                         value={selectedChat || ''}
                         onChange={(e: any) => setSelectedChat(e.target.value || null)}
@@ -170,7 +170,7 @@ export default function SearchSection() {
                     {searchResult.relatedAttachments.length > 0 && (
                         <div className="bg-white rounded-xl p-6 border border-surface-200">
                             <h3 className="font-semibold text-surface-900 mb-3">Related Files</h3>
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                                 {searchResult.relatedAttachments.map((att: any) => (
                                     <a
                                         key={att.id}

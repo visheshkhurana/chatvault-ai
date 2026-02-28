@@ -157,7 +157,7 @@ export default function CommitmentsSection() {
                                         </div>
                                         <button
                                             onClick={() => markAsDone(commitment.id)}
-                                            className="px-3 py-1 bg-brand-100 text-brand-700 rounded-lg text-sm font-medium hover:bg-brand-200"
+                                            className="px-3 py-2 bg-brand-100 text-brand-700 rounded-lg text-sm font-medium hover:bg-brand-200"
                                         >
                                             Mark Done
                                         </button>
@@ -194,7 +194,7 @@ export default function CommitmentsSection() {
                                         </div>
                                         <button
                                             onClick={() => markAsDone(commitment.id)}
-                                            className="px-3 py-1 bg-brand-100 text-brand-700 rounded-lg text-sm font-medium hover:bg-brand-200"
+                                            className="px-3 py-2 bg-brand-100 text-brand-700 rounded-lg text-sm font-medium hover:bg-brand-200"
                                         >
                                             Mark Done
                                         </button>
@@ -246,7 +246,7 @@ export default function CommitmentsSection() {
                 )}
 
                 {Object.values(grouped).every((arr) => arr.length === 0) && (
-                    <div className="bg-white rounded-xl border border-surface-200 p-12 text-center text-surface-500">
+                    <div className="bg-white rounded-xl border border-surface-200 p-6 sm:p-12 text-center text-surface-500">
                         No commitments found. Click "Scan for Commitments" to find commitments in your messages.
                     </div>
                 )}

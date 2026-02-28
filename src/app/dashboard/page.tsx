@@ -292,7 +292,7 @@ export default function DashboardPage() {
             </div>
           </header>
 
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-hidden pb-16 md:pb-0">
             {renderSection()}
           </div>
         </div>

@@ -86,7 +86,7 @@ export default function MobileTabBar({ activeTab, onTabChange }: MobileTabBarPro
               <button
                 key={tab.key}
                 onClick={() => onTabChange(tab.key)}
-                className={'relative flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-lg transition-all min-w-0 '
+                className={'relative flex flex-col items-center gap-0.5 py-2 px-3 rounded-lg transition-all min-w-0 min-h-[44px] '
                   + (isActive
                     ? 'text-brand-600'
                     : 'text-surface-400 active:text-surface-600')}
@@ -104,7 +104,7 @@ export default function MobileTabBar({ activeTab, onTabChange }: MobileTabBarPro
           {/* More button */}
           <button
             onClick={() => setShowMore(!showMore)}
-            className={'relative flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-lg transition-all min-w-0 '
+            className={'relative flex flex-col items-center gap-0.5 py-2 px-3 rounded-lg transition-all min-w-0 min-h-[44px] '
               + (isMoreActive ? 'text-brand-600' : 'text-surface-400 active:text-surface-600')}
           >
             <MoreHorizontal className="w-5 h-5" />

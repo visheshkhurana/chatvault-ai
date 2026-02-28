@@ -191,7 +191,7 @@ export default function KnowledgeBaseSection() {
                         placeholder="Content..."
                         className="w-full px-3 py-2 rounded-lg border border-surface-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 h-24 resize-none"
                     />
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <select
                             value={formData.category}
                             onChange={(e) => setFormData({ ...formData, category: e.target.value })}
@@ -264,7 +264,7 @@ export default function KnowledgeBaseSection() {
 
             {/* Entries */}
             {filteredEntries.length === 0 ? (
-                <div className="bg-white rounded-xl border border-surface-200 p-12 text-center">
+                <div className="bg-white rounded-xl border border-surface-200 p-6 sm:p-12 text-center">
                     <BookOpen className="w-8 h-8 text-surface-300 mx-auto mb-3" />
                     <p className="text-surface-600 font-medium">No entries in this category</p>
                 </div>
@@ -301,21 +301,21 @@ export default function KnowledgeBaseSection() {
                                         <div className="flex gap-2">
                                             <button
                                                 onClick={() => togglePin(entry.id)}
-                                                className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-brand-700 bg-brand-50 rounded hover:bg-brand-100"
+                                                className="flex items-center gap-1 px-3 py-2 text-xs font-medium text-brand-700 bg-brand-50 rounded hover:bg-brand-100"
                                             >
                                                 <Pin className="w-3 h-3" />
                                                 Unpin
                                             </button>
                                             <button
                                                 onClick={() => toggleArchive(entry.id)}
-                                                className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-surface-700 bg-surface-100 rounded hover:bg-surface-200"
+                                                className="flex items-center gap-1 px-3 py-2 text-xs font-medium text-surface-700 bg-surface-100 rounded hover:bg-surface-200"
                                             >
                                                 <Archive className="w-3 h-3" />
                                                 Archive
                                             </button>
                                             <button
                                                 onClick={() => deleteEntry(entry.id)}
-                                                className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-700 bg-red-50 rounded hover:bg-red-100"
+                                                className="flex items-center gap-1 px-3 py-2 text-xs font-medium text-red-700 bg-red-50 rounded hover:bg-red-100"
                                             >
                                                 <Trash2 className="w-3 h-3" />
                                             </button>
@@ -358,21 +358,21 @@ export default function KnowledgeBaseSection() {
                                         <div className="flex gap-2">
                                             <button
                                                 onClick={() => togglePin(entry.id)}
-                                                className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-surface-700 bg-surface-100 rounded hover:bg-surface-200"
+                                                className="flex items-center gap-1 px-3 py-2 text-xs font-medium text-surface-700 bg-surface-100 rounded hover:bg-surface-200"
                                             >
                                                 <Pin className="w-3 h-3" />
                                                 Pin
                                             </button>
                                             <button
                                                 onClick={() => toggleArchive(entry.id)}
-                                                className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-surface-700 bg-surface-100 rounded hover:bg-surface-200"
+                                                className="flex items-center gap-1 px-3 py-2 text-xs font-medium text-surface-700 bg-surface-100 rounded hover:bg-surface-200"
                                             >
                                                 <Archive className="w-3 h-3" />
                                                 Archive
                                             </button>
                                             <button
                                                 onClick={() => deleteEntry(entry.id)}
-                                                className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-700 bg-red-50 rounded hover:bg-red-100"
+                                                className="flex items-center gap-1 px-3 py-2 text-xs font-medium text-red-700 bg-red-50 rounded hover:bg-red-100"
                                             >
                                                 <Trash2 className="w-3 h-3" />
                                             </button>

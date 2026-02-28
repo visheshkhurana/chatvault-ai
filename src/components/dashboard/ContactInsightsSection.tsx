@@ -108,7 +108,7 @@ export default function ContactInsightsSection() {
             </div>
 
             {filteredContacts.length === 0 ? (
-                <div className="bg-white rounded-xl border border-surface-200 p-12 text-center">
+                <div className="bg-white rounded-xl border border-surface-200 p-6 sm:p-12 text-center">
                     <Users className="w-8 h-8 text-surface-300 mx-auto mb-3" />
                     <p className="text-surface-600 font-medium">
                         {activeTab === 'attention' ? 'All contacts are doing well' : 'No contacts found'}

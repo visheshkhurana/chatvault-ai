@@ -104,7 +104,7 @@ export default function ResponseSuggestionsSection() {
 
     if (activeSuggestions.length === 0) {
         return (
-            <div className="bg-white rounded-xl border border-surface-200 p-12 text-center">
+            <div className="bg-white rounded-xl border border-surface-200 p-6 sm:p-12 text-center">
                 <Sparkles className="w-8 h-8 text-surface-300 mx-auto mb-3" />
                 <p className="text-surface-600 font-medium">No suggestions at the moment</p>
                 <p className="text-surface-400 text-sm mt-1">Suggestions appear when you have unread messages</p>
@@ -132,7 +132,7 @@ export default function ResponseSuggestionsSection() {
                             </div>
                             <button
                                 onClick={() => dismissSuggestion(suggestion.id)}
-                                className="flex-shrink-0 p-1 hover:bg-surface-100 rounded-lg transition-colors"
+                                className="flex-shrink-0 p-2 hover:bg-surface-100 rounded-lg transition-colors"
                             >
                                 <X className="w-4 h-4 text-surface-400 hover:text-surface-600" />
                             </button>
@@ -148,7 +148,7 @@ export default function ResponseSuggestionsSection() {
                                     <p className="text-sm text-surface-700 mb-2">{reply}</p>
                                     <button
                                         onClick={() => copySuggestion(suggestion.id, reply)}
-                                        className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-brand-700 bg-brand-50 rounded hover:bg-brand-100 transition-colors group-hover:visible"
+                                        className="flex items-center gap-1 px-3 py-2 text-xs font-medium text-brand-700 bg-brand-50 rounded hover:bg-brand-100 transition-colors group-hover:visible"
                                     >
                                         <Copy className="w-3 h-3" />
                                         {copiedId === suggestion.id ? 'Copied!' : 'Copy'}

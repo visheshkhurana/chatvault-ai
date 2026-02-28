@@ -10,6 +10,7 @@ export const viewport: Viewport = {
     themeColor: '#16A34A',
     width: 'device-width',
     initialScale: 1,
+    viewportFit: 'cover',
 };
 
 export const metadata: Metadata = {
@@ -87,7 +88,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <head>
                 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
             </head>
-            <body className={inter.className}>
+            <body className={`${inter.className} touch-manipulation`}>
                 <ErrorBoundary>
                     {children}
                     <PWAInstallPrompt />
