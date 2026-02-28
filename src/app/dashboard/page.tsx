@@ -79,6 +79,8 @@ export default function DashboardPage() {
   const [user, setUser] = useState<any>(null);
   const [userName, setUserName] = useState<string>('');
   const [bridgeStatus, setBridgeStatus] = useState<BridgeStatus>({ connected: false });
+  const [bridgeError, setBridgeError] = useState<string | null>(null);
+  const bridgeFailCount = useRef(0);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -141,7 +143,9 @@ export default function DashboardPage() {
           const data = await res.json();
           if (!data.completed) setShowOnboarding(true);
         }
-      } catch {}
+      } catch (err) {
+        console.warn('[Onboarding] Check failed:', err);
+      }
     };
     if (user) checkOnboarding();
   }, [user]);
@@ -151,19 +155,43 @@ export default function DashboardPage() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
-        const res = await fetch(BRIDGE_URL + '/status');
-        if (res.ok) {
-          const data = await res.json();
+
+        // Try direct bridge call first; fall back to server-side proxy on failure
+        let data: any = null;
+        try {
+          const res = await fetch(BRIDGE_URL + '/status');
+          if (res.ok) data = await res.json();
+        } catch {
+          // CORS or network failure — use server-side proxy (no CORS)
+        }
+
+        if (!data) {
+          try {
+            const proxyRes = await fetch('/api/bridge-status');
+            if (proxyRes.ok) data = await proxyRes.json();
+          } catch {
+            // Server proxy also failed
+          }
+        }
+
+        if (data) {
           setBridgeStatus({ connected: data.connected, phone: data.phone, name: data.name });
+          bridgeFailCount.current = 0;
+          setBridgeError(null);
         } else {
-          console.warn('[Bridge] Status check failed:', res.status);
+          bridgeFailCount.current += 1;
+          if (bridgeFailCount.current >= 3) {
+            setBridgeError('Unable to reach WhatsApp bridge. Check your connection or try reconnecting.');
+          }
+          console.warn(`[Bridge] Status check failed (attempt ${bridgeFailCount.current})`);
         }
       } catch (err) {
-        console.warn('[Bridge] Status check error (CORS or network):', err);
+        bridgeFailCount.current += 1;
+        console.warn('[Bridge] Status check error:', err);
       }
     };
     checkBridge();
-    const interval = setInterval(checkBridge, 10000); // Poll every 10s for faster state sync
+    const interval = setInterval(checkBridge, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -295,6 +323,18 @@ export default function DashboardPage() {
               </button>
             </div>
           </header>
+
+          {bridgeError && (
+            <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center justify-between gap-2 flex-shrink-0">
+              <p className="text-xs text-amber-800">{bridgeError}</p>
+              <button
+                onClick={() => { setBridgeError(null); bridgeFailCount.current = 0; }}
+                className="text-xs text-amber-600 hover:text-amber-800 font-medium whitespace-nowrap"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
 
           <div className="flex-1 overflow-hidden pb-16 md:pb-0">
             {renderSection()}

@@ -144,14 +144,25 @@ export async function getInternalUserId(): Promise<string | null> {
         const { data: session } = await supabase.auth.getSession();
         if (!session?.session?.user) return null;
 
-        const { data: user } = await supabase
-            .from('users')
-            .select('id')
-            .eq('auth_id', session.session.user.id)
-            .single();
+        // Retry up to 3 times with backoff — handles race condition where
+        // the users row hasn't been created yet right after signup
+        for (let attempt = 0; attempt < 3; attempt++) {
+            const { data: user } = await supabase
+                .from('users')
+                .select('id')
+                .eq('auth_id', session.session.user.id)
+                .single();
 
-        if (user?.id) {
-                    cachedInternalUserId = user.id;
+            if (user?.id) {
+                cachedInternalUserId = user.id;
+                return user.id;
+            }
+
+            if (attempt < 2) {
+                await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+            }
         }
-        return user?.id || null;
+
+        console.warn('[getInternalUserId] User row not found after 3 attempts for auth_id:', session.session.user.id);
+        return null;
 }
