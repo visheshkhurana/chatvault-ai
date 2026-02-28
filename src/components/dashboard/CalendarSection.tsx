@@ -278,7 +278,7 @@ export default function CalendarSection() {
                               <div className="flex gap-2 pt-1">
                                 <button
                                   onClick={() => cancelEvent(evt.id)}
-                                  className="px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100"
+                                  className="px-4 py-2 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100"
                                 >
                                   Cancel event
                                 </button>

@@ -166,7 +166,7 @@ export default function ResponseSuggestionsSection() {
                                         <button
                                             key={star}
                                             onClick={() => rateSuggestion(suggestion.id, star)}
-                                            className={`p-1 rounded transition-colors ${
+                                            className={`p-1.5 rounded transition-colors ${
                                                 suggestion.rating && suggestion.rating >= star
                                                     ? 'text-yellow-500 hover:text-yellow-600'
                                                     : 'text-surface-300 hover:text-yellow-400'

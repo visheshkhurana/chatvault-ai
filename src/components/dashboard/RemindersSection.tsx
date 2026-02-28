@@ -139,7 +139,7 @@ export default function RemindersSection() {
                                     <p className="text-sm text-surface-800">{e.text}</p>
                                     <p className="text-xs text-surface-400">{e.suggestedDueAt ? new Date(e.suggestedDueAt).toLocaleDateString() : 'No date'} • {(e.confidence * 100).toFixed(0)}% confidence</p>
                                 </div>
-                                <button onClick={() => { setNewText(e.text); setNewDueAt(e.suggestedDueAt?.substring(0, 16) || ''); setShowForm(true); }} className="px-3 py-1 bg-brand-600 text-white rounded-lg text-xs hover:bg-brand-700">Add</button>
+                                <button onClick={() => { setNewText(e.text); setNewDueAt(e.suggestedDueAt?.substring(0, 16) || ''); setShowForm(true); }} className="px-3 py-2 bg-brand-600 text-white rounded-lg text-xs hover:bg-brand-700">Add</button>
                             </div>
                         ))}
                     </div>
@@ -172,7 +172,7 @@ export default function RemindersSection() {
                                 </div>
                             </div>
                             {r.status !== 'done' && (
-                                <button onClick={() => markDone(r.id)} className="px-3 py-1.5 bg-brand-100 text-brand-700 rounded-lg text-xs font-medium hover:bg-brand-200 flex items-center gap-1">
+                                <button onClick={() => markDone(r.id)} className="px-3 py-2 bg-brand-100 text-brand-700 rounded-lg text-xs font-medium hover:bg-brand-200 flex items-center gap-1">
                                     <CheckSquare className="w-3 h-3" /> Done
                                 </button>
                             )}

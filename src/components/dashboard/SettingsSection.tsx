@@ -308,7 +308,7 @@ export default function SettingsSection() {
                     <div className="flex justify-center">
                       <iframe
                         src={BRIDGE_URL + '/qr?embed=1'}
-                        className="w-[280px] h-[280px] rounded-lg border-2 border-brand-200"
+                        className="w-full max-w-[280px] aspect-square rounded-lg border-2 border-brand-200"
                         title="WhatsApp QR Code"
                       />
                     </div>
@@ -456,7 +456,7 @@ export default function SettingsSection() {
                     </div>
                     <button
                       onClick={() => saveSettings({ [item.key]: !settings[item.key] })}
-                      className={'px-3 py-1 rounded-lg text-sm font-medium transition-colors ' + (settings[item.key] ? 'bg-brand-100 text-brand-700' : 'bg-surface-100 text-surface-700')}
+                      className={'px-3 py-2 rounded-lg text-sm font-medium transition-colors ' + (settings[item.key] ? 'bg-brand-100 text-brand-700' : 'bg-surface-100 text-surface-700')}
                     >
                       {settings[item.key] ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
                     </button>
