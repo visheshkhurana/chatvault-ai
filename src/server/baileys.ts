@@ -375,8 +375,19 @@ async function ensureOwnerUser(): Promise<string> {
     }).select('id').single();
 
     if (error) {
+        // Handle duplicate key — user exists but phone didn't match; look up by auth_id
+        if (error.code === '23505') {
+            logger.info({ authId: authUser.id, phone: phoneNumber }, 'User exists (auth_id match), fetching by auth_id');
+            const { data: existing } = await supabase.from('users').select('id').eq('auth_id', authUser.id).maybeSingle();
+            if (existing?.id) {
+                // Update their phone while we're at it
+                await supabase.from('users').update({ phone: phoneNumber }).eq('id', existing.id);
+                ownerUserId = existing.id;
+                return ownerUserId!;
+            }
+        }
         logger.error({ error }, 'Failed to create owner user');
-        throw error;
+        throw new Error(`Failed to create owner user: ${error.message}`);
     }
 
     ownerUserId = newUser.id;
