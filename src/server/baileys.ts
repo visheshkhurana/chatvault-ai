@@ -1,3 +1,4 @@
+// Rememora WhatsApp Bridge — Baileys multi-device
 import makeWASocket, {
     DisconnectReason,
     useMultiFileAuthState,
