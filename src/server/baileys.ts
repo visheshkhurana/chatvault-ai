@@ -50,6 +50,13 @@ const MAX_RECONNECT_DELAY = 300000; // 5 minutes max
 let lastEventAt: Date | null = null; // Track last Baileys event for staleness detection
 const STALE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes without events = stale
 
+// Debug ring buffer — last N events for diagnostics
+const debugEvents: Array<{ ts: string; event: string; data: any }> = [];
+function logDebugEvent(event: string, data: any) {
+    debugEvents.push({ ts: new Date().toISOString(), event, data });
+    if (debugEvents.length > 50) debugEvents.shift();
+}
+
 let syncStats = {
     chats: 0,
     messages: 0,
@@ -119,6 +126,19 @@ app.get('/status', (_req: any, res: any) => {
         name: sock?.user?.name || null,
         lastEventAt: lastEventAt?.toISOString() || null,
         staleMs: lastEventAt ? Date.now() - lastEventAt.getTime() : null,
+    });
+});
+
+app.get('/debug', (_req: any, res: any) => {
+    res.json({
+        ownerJid,
+        ownerLid,
+        ownerPhone: sock?.user?.id?.split(':')[0]?.split('@')[0] || null,
+        fullUserId: sock?.user?.id || null,
+        botEnabled: BOT_ENABLED,
+        connectionStatus,
+        reconnectAttempts,
+        recentEvents: debugEvents.slice(-20),
     });
 });
 
@@ -484,9 +504,10 @@ async function startBaileys() {
         if (connection === 'open') {
             connectionStatus = 'connected';
             qrCode = null;
-            reconnectAttempts = 0; // Reset backoff on successful connection
-            lastEventAt = new Date(); // Track connection time
+            reconnectAttempts = 0;
+            lastEventAt = new Date();
             logger.info('Connected!');
+            logDebugEvent('connection', { state: 'open', userId: sock?.user?.id, lid: sock?.user?.lid });
             // Start keepalive: auto-reconnect if no events for STALE_TIMEOUT_MS
             startKeepaliveTimer();
         // Capture LID for multi-device self-chat
@@ -506,8 +527,9 @@ async function startBaileys() {
 
         if (connection === 'close') {
             connectionStatus = 'disconnected';
-            stopKeepaliveTimer(); // Don't fight with Baileys' own reconnect
+            stopKeepaliveTimer();
             const code = (lastDisconnect?.error as Boom)?.output?.statusCode;
+            logDebugEvent('connection', { state: 'close', code, error: lastDisconnect?.error?.message, attempt: reconnectAttempts + 1 });
             if (code !== DisconnectReason.loggedOut) {
                 reconnectAttempts++;
                 const delay = Math.min(5000 * Math.pow(2, reconnectAttempts - 1), MAX_RECONNECT_DELAY) + Math.floor(Math.random() * 2000);
@@ -583,10 +605,14 @@ async function startBaileys() {
         const isHistory = type === 'append';
         if (type !== 'notify' && type !== 'append') return;
 
-        // Debug: log all upsert events for diagnostics
         const ownerPhone = sock?.user?.id?.split(':')[0]?.split('@')[0] || '';
-        lastEventAt = new Date(); // Reset staleness timer on every message event
-        logger.info({ type, count: messages.length, fromMe: messages[0]?.key?.fromMe, remoteJid: messages[0]?.key?.remoteJid?.split('@')[0]?.substring(0, 6) }, 'messages.upsert event');
+        lastEventAt = new Date();
+        // Detailed self-chat diagnostic logging
+        const firstMsg = messages[0];
+        const remotePhone = firstMsg?.key?.remoteJid?.split('@')[0]?.split(':')[0] || '';
+        const isSelfCandidate = firstMsg?.key?.fromMe && remotePhone === ownerPhone;
+        logger.info({ type, count: messages.length, fromMe: firstMsg?.key?.fromMe, remoteJid: firstMsg?.key?.remoteJid, ownerPhone, ownerJid, ownerLid, isSelfCandidate, botEnabled: BOT_ENABLED }, 'messages.upsert event');
+        logDebugEvent('messages.upsert', { type, count: messages.length, fromMe: firstMsg?.key?.fromMe, remoteJid: firstMsg?.key?.remoteJid, isSelfCandidate });
 
         if (isHistory) {
             syncStats.inProgress = true;
@@ -610,7 +636,9 @@ async function startBaileys() {
                       );
                     const msgAge = msg.messageTimestamp ? (Date.now() / 1000) - Number(msg.messageTimestamp) : Infinity;
                     const isRecent = msgAge < 120; // within last 2 minutes
-                    if (type === 'notify' || (isSelfMsg && isRecent)) {
+                    const willTrigger = type === 'notify' || (isSelfMsg && isRecent);
+                    logDebugEvent('bot-check', { fromMe: msg.key.fromMe, isSelfMsg, type, msgAge: Math.round(msgAge), isRecent, willTrigger, remoteJid: msg.key.remoteJid });
+                    if (willTrigger) {
                         logger.info({ fromMe: msg.key.fromMe, isSelfMsg, type, msgAge: Math.round(msgAge), remoteJid: msg.key.remoteJid, ownerLid, ownerJid }, 'Triggering bot check');
                         await maybeHandleBotQuery(msg);
                     }
@@ -623,21 +651,25 @@ async function startBaileys() {
 
     // Catch self-chat messages that may not arrive via messages.upsert in multi-device mode
     sock.ev.on('messages.update', async (updates: any[]) => {
-        if (!BOT_ENABLED || !sock) return;
+        if (!sock) return;
         const ownerPhone = sock?.user?.id?.split(':')[0]?.split('@')[0] || '';
         for (const update of updates) {
             try {
                 const { key, update: msgUpdate } = update;
-                // Only care about self-chat messages
+                const remotePhone = key.remoteJid?.split('@')[0]?.split(':')[0] || '';
                 const isSelf = key.fromMe && (
                     key.remoteJid === ownerJid ||
-                    key.remoteJid?.split('@')[0]?.split(':')[0] === ownerPhone ||
+                    remotePhone === ownerPhone ||
                     (ownerLid && key.remoteJid === ownerLid)
                   );
-                if (!isSelf) continue;
+                // Log ALL updates for self-chat messages for diagnostics
+                if (isSelf) {
+                    logger.info({ remoteJid: key.remoteJid, fromMe: key.fromMe, hasMessage: !!msgUpdate?.message, updateKeys: Object.keys(msgUpdate || {}), msgId: key.id }, 'Self-chat messages.update event');
+                }
+                if (!isSelf || !BOT_ENABLED) continue;
                 // If message content is available in the update, process it
                 if (msgUpdate?.message) {
-                    logger.info({ remoteJid: key.remoteJid, fromMe: key.fromMe }, 'Self-chat via messages.update');
+                    logger.info({ remoteJid: key.remoteJid, fromMe: key.fromMe }, 'Self-chat bot trigger via messages.update');
                     const fullMsg = { key, message: msgUpdate.message, messageTimestamp: msgUpdate.messageTimestamp || Math.floor(Date.now() / 1000) } as any;
                     await maybeHandleBotQuery(fullMsg);
                 }
@@ -653,18 +685,28 @@ async function startBaileys() {
 // ================================================================
 
 async function maybeHandleBotQuery(msg: proto.IWebMessageInfo) {
-    if (!sock || !msg.message) return;
+    if (!sock || !msg.message) {
+        logDebugEvent('bot-skip', { reason: !sock ? 'no-sock' : 'no-message', remoteJid: msg.key.remoteJid });
+        return;
+    }
 
     const remoteJid = msg.key.remoteJid || '';
     if (remoteJid === 'status@broadcast') return;
 
     const contentType = getContentType(msg.message);
     const { text } = extractContent(msg, contentType);
-    if (!text || text.length < 2) return;
+    if (!text || text.length < 2) {
+        logDebugEvent('bot-skip', { reason: 'no-text-or-short', text: text?.substring(0, 20), remoteJid });
+        return;
+    }
 
     const isFromMe = msg.key.fromMe || false;
-    const isSelfChat = remoteJid === ownerJid || remoteJid?.split('@')[0]?.split(':')[0] === sock?.user?.id?.split(':')[0]?.split('@')[0] || (ownerLid && remoteJid === ownerLid);
+    const ownerPhone = sock?.user?.id?.split(':')[0]?.split('@')[0] || '';
+    const remotePhone = remoteJid?.split('@')[0]?.split(':')[0] || '';
+    const isSelfChat = remoteJid === ownerJid || remotePhone === ownerPhone || (ownerLid && remoteJid === ownerLid);
     const textLower = text.toLowerCase().trim();
+
+    logDebugEvent('bot-evaluate', { isFromMe, isSelfChat, remoteJid, ownerJid, remotePhone, ownerPhone, ownerLid, text: text.substring(0, 40) });
 
     let isBotQuery = false;
     let queryText = text;
@@ -682,7 +724,12 @@ async function maybeHandleBotQuery(msg: proto.IWebMessageInfo) {
         }
     }
 
-    if (!isBotQuery) return;
+    if (!isBotQuery) {
+        logDebugEvent('bot-no-trigger', { isFromMe, isSelfChat, remoteJid, text: text.substring(0, 40) });
+        return;
+    }
+
+    logDebugEvent('bot-query', { query: queryText.substring(0, 80), from: remoteJid, isFromMe, isSelfChat });
 
     // Handle "yes" confirmations for pending meetings
     const queryLower = queryText.toLowerCase().trim();
