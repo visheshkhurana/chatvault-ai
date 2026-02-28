@@ -8,13 +8,24 @@ import { TabType } from '@/types/dashboard';
 import DashboardSidebar from '@/components/DashboardSidebar';
 import MobileTabBar from '@/components/MobileTabBar';
 import OnboardingFlow from '@/components/OnboardingFlow';
-// HomeSection no longer used — Home tab now renders AssistantSection (chatbot)
 import MessagesSection from '@/components/dashboard/MessagesSection';
 import ActionsSection from '@/components/dashboard/ActionsSection';
 import PeopleSection from '@/components/dashboard/PeopleSection';
 import AssistantSection from '@/components/dashboard/AssistantSection';
 import SettingsSection from '@/components/dashboard/SettingsSection';
 import ReferralSection from '@/components/dashboard/ReferralSection';
+// Feature expansion imports
+import MemoriesSection from '@/components/dashboard/MemoriesSection';
+import VoiceNotesSection from '@/components/dashboard/VoiceNotesSection';
+import KnowledgeBaseSection from '@/components/dashboard/KnowledgeBaseSection';
+import ContactInsightsSection from '@/components/dashboard/ContactInsightsSection';
+import EmotionalInsightsSection from '@/components/dashboard/EmotionalInsightsSection';
+import WeeklyRecapSection from '@/components/dashboard/WeeklyRecapSection';
+import BirthdaySection from '@/components/dashboard/BirthdaySection';
+import SharedSpacesSection from '@/components/dashboard/SharedSpacesSection';
+import PlatformsSection from '@/components/dashboard/PlatformsSection';
+import ResponseSuggestionsSection from '@/components/dashboard/ResponseSuggestionsSection';
+import AgenticTasksSection from '@/components/dashboard/AgenticTasksSection';
 
 interface BridgeStatus {
   connected: boolean;
@@ -32,6 +43,17 @@ const TAB_TITLES: Record<string, { title: string; subtitle: string }> = {
   assistant: { title: 'AI Assistant', subtitle: 'Ask anything' },
   settings: { title: 'Settings', subtitle: 'Preferences & connection' },
   referrals: { title: 'Refer Friends', subtitle: 'Earn free Pro days' },
+  memories: { title: 'Memories', subtitle: 'This Day in your chats' },
+  'voice-notes': { title: 'Voice Notes', subtitle: 'Transcriptions & search' },
+  'knowledge-base': { title: 'Knowledge Base', subtitle: 'Your personal wiki' },
+  'contact-insights': { title: 'Contact Insights', subtitle: 'Relationship intelligence' },
+  'emotional-insights': { title: 'Emotional Insights', subtitle: 'Conversation health' },
+  'weekly-recap': { title: 'Weekly Recap', subtitle: 'Your week in review' },
+  birthdays: { title: 'Special Dates', subtitle: 'Birthdays & anniversaries' },
+  'shared-spaces': { title: 'Shared Spaces', subtitle: 'Family & team memories' },
+  platforms: { title: 'Platforms', subtitle: 'Connected services' },
+  'response-suggestions': { title: 'Smart Replies', subtitle: 'AI response suggestions' },
+  'agentic-tasks': { title: 'Tasks', subtitle: 'Automated actions' },
 };
 
 function resolveTab(tab: TabType): TabType {
@@ -161,6 +183,18 @@ export default function DashboardPage() {
       case 'assistant': return <AssistantSection bridgeStatus={bridgeStatus.connected ? 'connected' : 'disconnected'} userEmail={user?.email} userName={userName} />;
       case 'settings': return <SettingsSection />;
       case 'referrals': return <ReferralSection />;
+      // Feature expansion sections
+      case 'memories': return <MemoriesSection />;
+      case 'voice-notes': return <VoiceNotesSection />;
+      case 'knowledge-base': return <KnowledgeBaseSection />;
+      case 'contact-insights': return <ContactInsightsSection />;
+      case 'emotional-insights': return <EmotionalInsightsSection />;
+      case 'weekly-recap': return <WeeklyRecapSection />;
+      case 'birthdays': return <BirthdaySection />;
+      case 'shared-spaces': return <SharedSpacesSection />;
+      case 'platforms': return <PlatformsSection />;
+      case 'response-suggestions': return <ResponseSuggestionsSection />;
+      case 'agentic-tasks': return <AgenticTasksSection />;
       default: return <AssistantSection bridgeStatus={bridgeStatus.connected ? 'connected' : 'disconnected'} userEmail={user?.email} userName={userName} />;
     }
   };

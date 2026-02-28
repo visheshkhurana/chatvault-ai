@@ -1,9 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Bot, MessageCircle, ListChecks, Users, Settings, Gift,
-  ChevronLeft, ChevronRight, Command, Wifi, WifiOff, MessageSquare,
+  ChevronLeft, ChevronRight, ChevronDown, Command, Wifi, WifiOff, MessageSquare,
+  Sparkles, Mic, BookOpen, Heart, BarChart3, Cake, Globe, Reply, Zap, Brain,
 } from 'lucide-react';
 import { TabType } from '@/types/dashboard';
 
@@ -30,16 +31,66 @@ interface NavItem {
   badge?: number;
 }
 
-const navItems: NavItem[] = [
+const primaryNavItems: NavItem[] = [
   { icon: Bot, label: 'Home', tab: 'home', description: 'Chat with Rememora' },
   { icon: MessageCircle, label: 'Messages', tab: 'messages', description: 'Chats, files & search' },
   { icon: ListChecks, label: 'Actions', tab: 'actions', description: 'Reminders & tasks' },
   { icon: Users, label: 'People', tab: 'people', description: 'Contact intelligence' },
 ];
 
+const featureNavItems: NavItem[] = [
+  { icon: Sparkles, label: 'Memories', tab: 'memories', description: 'This Day in your chats' },
+  { icon: Mic, label: 'Voice Notes', tab: 'voice-notes', description: 'Transcriptions & search' },
+  { icon: BookOpen, label: 'Knowledge Base', tab: 'knowledge-base', description: 'Your personal wiki' },
+  { icon: Heart, label: 'Contact Insights', tab: 'contact-insights', description: 'Relationship intel' },
+  { icon: Brain, label: 'Emotional Insights', tab: 'emotional-insights', description: 'Conversation health' },
+  { icon: BarChart3, label: 'Weekly Recap', tab: 'weekly-recap', description: 'Your week in review' },
+  { icon: Cake, label: 'Special Dates', tab: 'birthdays', description: 'Birthdays & more' },
+  { icon: Globe, label: 'Shared Spaces', tab: 'shared-spaces', description: 'Family & team' },
+  { icon: Reply, label: 'Smart Replies', tab: 'response-suggestions', description: 'AI suggestions' },
+  { icon: Zap, label: 'Tasks', tab: 'agentic-tasks', description: 'Automated actions' },
+];
+
+const featureTabs = new Set(featureNavItems.map(i => i.tab));
+
 const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
   activeTab, onTabChange, collapsed, onToggleCollapse, userName, bridgeStatus,
 }) => {
+  const [featuresExpanded, setFeaturesExpanded] = useState(() => featureTabs.has(activeTab));
+
+  const renderNavItem = (item: NavItem) => {
+    const isActive = activeTab === item.tab;
+    return (
+      <button
+        key={item.tab}
+        onClick={() => onTabChange(item.tab)}
+        className={'w-full flex items-center gap-3 rounded-lg transition-all duration-200 group '
+          + (collapsed ? 'px-3 py-3 justify-center ' : 'px-3 py-2.5 ')
+          + (isActive
+            ? 'bg-brand-500/10 text-brand-400 border-l-2 border-brand-400 -ml-px'
+            : 'text-surface-400 hover:text-surface-200 hover:bg-surface-800')}
+        title={collapsed ? item.label : undefined}
+      >
+        <item.icon className="flex-shrink-0 w-5 h-5" />
+        {!collapsed && (
+          <div className="flex flex-col items-start min-w-0">
+            <span className="text-[13px] font-semibold leading-tight">{item.label}</span>
+            {item.description && (
+              <span className={'text-[11px] leading-tight mt-px ' + (isActive ? 'text-brand-500/70' : 'text-surface-600 group-hover:text-surface-500')}>
+                {item.description}
+              </span>
+            )}
+          </div>
+        )}
+        {!collapsed && item.badge && item.badge > 0 && (
+          <span className="ml-auto text-[10px] bg-brand-500 text-white px-1.5 py-0.5 rounded-full font-semibold">
+            {item.badge}
+          </span>
+        )}
+      </button>
+    );
+  };
+
   return (
     <aside className={'hidden md:flex flex-col flex-shrink-0 bg-surface-900 border-r border-surface-800/50 transition-all duration-300 ease-in-out relative ' + (collapsed ? 'w-[72px]' : 'w-[260px]')}>
 
@@ -81,40 +132,31 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
         {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
       </button>
 
-      {/* Nav items */}
-      <nav className="flex-1 px-3 py-3 space-y-0.5">
-        {navItems.map((item) => {
-          const isActive = activeTab === item.tab;
-          return (
+      {/* Primary nav items */}
+      <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto scrollbar-thin scrollbar-thumb-surface-700">
+        {primaryNavItems.map(renderNavItem)}
+
+        {/* Features section divider + expandable */}
+        {!collapsed ? (
+          <div className="pt-3">
             <button
-              key={item.tab}
-              onClick={() => onTabChange(item.tab)}
-              className={'w-full flex items-center gap-3 rounded-lg transition-all duration-200 group '
-                + (collapsed ? 'px-3 py-3 justify-center ' : 'px-3 py-2.5 ')
-                + (isActive
-                  ? 'bg-brand-500/10 text-brand-400 border-l-2 border-brand-400 -ml-px'
-                  : 'text-surface-400 hover:text-surface-200 hover:bg-surface-800')}
-              title={collapsed ? item.label : undefined}
+              onClick={() => setFeaturesExpanded(!featuresExpanded)}
+              className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] font-semibold text-surface-500 uppercase tracking-wider hover:text-surface-300 transition-colors"
             >
-              <item.icon className="flex-shrink-0 w-5 h-5" />
-              {!collapsed && (
-                <div className="flex flex-col items-start min-w-0">
-                  <span className="text-[13px] font-semibold leading-tight">{item.label}</span>
-                  {item.description && (
-                    <span className={'text-[11px] leading-tight mt-px ' + (isActive ? 'text-brand-500/70' : 'text-surface-600 group-hover:text-surface-500')}>
-                      {item.description}
-                    </span>
-                  )}
-                </div>
-              )}
-              {!collapsed && item.badge && item.badge > 0 && (
-                <span className="ml-auto text-[10px] bg-brand-500 text-white px-1.5 py-0.5 rounded-full font-semibold">
-                  {item.badge}
-                </span>
-              )}
+              <span>Features</span>
+              <ChevronDown className={'w-3 h-3 transition-transform ' + (featuresExpanded ? 'rotate-0' : '-rotate-90')} />
             </button>
-          );
-        })}
+            {featuresExpanded && (
+              <div className="space-y-0.5 mt-1">
+                {featureNavItems.map(renderNavItem)}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="pt-3 space-y-0.5">
+            {featureNavItems.slice(0, 4).map(renderNavItem)}
+          </div>
+        )}
       </nav>
 
       {/* Bridge status */}
