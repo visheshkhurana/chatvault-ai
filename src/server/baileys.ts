@@ -294,26 +294,32 @@ async function sendWelcomeMessage() {
         await new Promise(r => setTimeout(r, 3000));
 
         const welcomeText = '\ud83d\udc4b *Welcome to Rememora!*\n\n' +
-            'Your WhatsApp memory layer is now active. I\'m your AI assistant that helps you find, organize, and recall anything from your WhatsApp conversations.\n\n' +
-            '\ud83d\udcac *What I can do:*\n\n' +
-            '\ud83d\udd0d *Find anything* \u2014 Search messages, files & documents\n' +
-            '   \u2022 "Find my medical report from March"\n' +
-            '   \u2022 "What PDF did Neha send last week?"\n\n' +
-            '\ud83d\udcdd *Summarize conversations* \u2014 Get quick recaps\n' +
-            '   \u2022 "Summarize my chat with the bankers"\n' +
-            '   \u2022 "Recap my conversation with Mom"\n\n' +
-            '\u2705 *Track commitments* \u2014 Never miss a promise\n' +
-            '   \u2022 "Show my pending commitments"\n' +
-            '   \u2022 "What did I promise to do?"\n\n' +
-            '\ud83d\udcc4 *Locate documents* \u2014 Find shared files instantly\n' +
-            '   \u2022 "Find the invoice from OROS"\n' +
-            '   \u2022 "Show documents from last month"\n\n' +
-            '\ud83d\udca1 *How to use me:*\n' +
-            '\u2022 *Self-chat:* Message yourself \u2014 every message is a query\n' +
-            '\u2022 *Any chat:* Prefix with *!* or *@rememora*\n' +
-            '   Example: !find my passport copy\n\n' +
-            '\ud83d\ude80 I\'m now syncing your WhatsApp history in the background. The more messages I index, the smarter I get!\n\n' +
-            'Type *help* anytime to see this again.';
+            'Your WhatsApp is now connected! I\'m your AI-powered memory assistant \u2014 I help you search, organize, and recall anything from your WhatsApp chats.\n\n' +
+            '\ud83d\ude80 *I\'m syncing your chat history now.* This may take a few minutes \u2014 the more I sync, the smarter I get!\n\n' +
+            '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n' +
+            '\ud83e\udde0 *What Rememora can do:*\n\n' +
+            '\ud83d\udd0d *Instant Search* \u2014 Find any message, file, or document across all your chats\n' +
+            '   _"Find the PDF Neha sent last week"_\n' +
+            '   _"What was that restaurant Priya recommended?"_\n\n' +
+            '\ud83d\udcdd *Smart Summaries* \u2014 Get quick recaps of long conversations\n' +
+            '   _"Summarize my chat with the team"_\n\n' +
+            '\u2705 *Commitment Tracker* \u2014 Never forget a promise or follow-up\n' +
+            '   _"What did I promise to do?"_\n\n' +
+            '\u23f0 *Reminders* \u2014 AI-extracted reminders from your chats\n' +
+            '   _"Remind me about the meeting tomorrow"_\n\n' +
+            '\ud83d\udcc5 *Calendar* \u2014 Auto-detect events and meetings\n\n' +
+            '\ud83d\udcc1 *File Browser* \u2014 All shared photos, docs & media in one place\n\n' +
+            '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n' +
+            '\ud83d\udca1 *How to use me:*\n\n' +
+            '*From WhatsApp:*\n' +
+            '\u2022 Message yourself (self-chat) \u2014 every message is a query\n' +
+            '\u2022 In any chat, prefix with *!* or *@rememora*\n' +
+            '   e.g. _!find my passport copy_\n\n' +
+            '*From the Dashboard:*\n' +
+            '\u2022 Visit *rememora.xyz* for the full experience\n' +
+            '\u2022 Chat with me, browse files, manage reminders & more\n\n' +
+            '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n' +
+            'Type *help* anytime to see this again. Enjoy! \u2728';
 
         // Send to self-chat (user's own JID)
         const selfJid = ownerJid.includes(':')
