@@ -2,7 +2,7 @@
 
 import React from 'react';
 import {
-  Bot, MessageCircle, ListChecks, Users, Settings,
+  Bot, MessageCircle, ListChecks, Users, Settings, Gift,
   ChevronLeft, ChevronRight, Command, Wifi, WifiOff, MessageSquare,
 } from 'lucide-react';
 import { TabType } from '@/types/dashboard';
@@ -140,6 +140,22 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
           </button>
         </div>
       )}
+
+      {/* Refer Friends */}
+      <div className={'px-3 ' + (collapsed ? 'pb-1' : 'pb-1')}>
+        <button
+          onClick={() => onTabChange('referrals')}
+          className={'w-full flex items-center gap-3 rounded-lg transition-colors '
+            + (collapsed ? 'px-3 py-3 justify-center ' : 'px-3 py-2.5 ')
+            + (activeTab === 'referrals'
+              ? 'bg-brand-500/10 text-brand-400'
+              : 'text-surface-400 hover:text-surface-200 hover:bg-surface-800')}
+          title={collapsed ? 'Refer Friends' : undefined}
+        >
+          <Gift className="w-5 h-5" />
+          {!collapsed && <span className="text-[13px] font-semibold">Refer Friends</span>}
+        </button>
+      </div>
 
       {/* Settings */}
       <div className={'px-3 ' + (collapsed ? 'pb-4' : 'pb-4')}>

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -71,7 +72,12 @@ export const metadata: Metadata = {
     manifest: '/manifest.json',
     icons: {
         icon: '/favicon.svg',
-        apple: '/favicon.svg',
+        apple: '/icons/icon-192.png',
+    },
+    appleWebApp: {
+        capable: true,
+        statusBarStyle: 'default',
+        title: 'Rememora',
     },
 };
 
@@ -82,7 +88,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
             </head>
             <body className={inter.className}>
-                <ErrorBoundary>{children}</ErrorBoundary>
+                <ErrorBoundary>
+                    {children}
+                    <PWAInstallPrompt />
+                </ErrorBoundary>
             </body>
         </html>
     );

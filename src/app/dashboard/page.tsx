@@ -7,12 +7,14 @@ import { TabType } from '@/types/dashboard';
 
 import DashboardSidebar from '@/components/DashboardSidebar';
 import MobileTabBar from '@/components/MobileTabBar';
+import OnboardingFlow from '@/components/OnboardingFlow';
 // HomeSection no longer used — Home tab now renders AssistantSection (chatbot)
 import MessagesSection from '@/components/dashboard/MessagesSection';
 import ActionsSection from '@/components/dashboard/ActionsSection';
 import PeopleSection from '@/components/dashboard/PeopleSection';
 import AssistantSection from '@/components/dashboard/AssistantSection';
 import SettingsSection from '@/components/dashboard/SettingsSection';
+import ReferralSection from '@/components/dashboard/ReferralSection';
 
 interface BridgeStatus {
   connected: boolean;
@@ -29,6 +31,7 @@ const TAB_TITLES: Record<string, { title: string; subtitle: string }> = {
   people: { title: 'People', subtitle: 'Contact intelligence' },
   assistant: { title: 'AI Assistant', subtitle: 'Ask anything' },
   settings: { title: 'Settings', subtitle: 'Preferences & connection' },
+  referrals: { title: 'Refer Friends', subtitle: 'Earn free Pro days' },
 };
 
 function resolveTab(tab: TabType): TabType {
@@ -55,6 +58,7 @@ export default function DashboardPage() {
   const [userName, setUserName] = useState<string>('');
   const [bridgeStatus, setBridgeStatus] = useState<BridgeStatus>({ connected: false });
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -102,6 +106,24 @@ export default function DashboardPage() {
     checkAuth();
   }, []);
 
+  // Check onboarding status
+  useEffect(() => {
+    const checkOnboarding = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const res = await fetch('/api/onboarding', {
+          headers: { 'Authorization': `Bearer ${session.access_token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (!data.completed) setShowOnboarding(true);
+        }
+      } catch {}
+    };
+    if (user) checkOnboarding();
+  }, [user]);
+
   useEffect(() => {
     const checkBridge = async () => {
       try {
@@ -138,6 +160,7 @@ export default function DashboardPage() {
       case 'people': return <PeopleSection />;
       case 'assistant': return <AssistantSection bridgeStatus={bridgeStatus.connected ? 'connected' : 'disconnected'} userEmail={user?.email} userName={userName} />;
       case 'settings': return <SettingsSection />;
+      case 'referrals': return <ReferralSection />;
       default: return <AssistantSection bridgeStatus={bridgeStatus.connected ? 'connected' : 'disconnected'} userEmail={user?.email} userName={userName} />;
     }
   };
@@ -241,6 +264,14 @@ export default function DashboardPage() {
         </div>
       </main>
       <MobileTabBar activeTab={activeTab} onTabChange={handleTabChange} />
+      {showOnboarding && (
+        <OnboardingFlow
+          onComplete={() => setShowOnboarding(false)}
+          onSkip={() => setShowOnboarding(false)}
+          bridgeConnected={bridgeStatus.connected}
+          onNavigate={(tab) => { setShowOnboarding(false); handleTabChange(tab as TabType); }}
+        />
+      )}
     </div>
   );
 }

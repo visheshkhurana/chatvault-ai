@@ -1,7 +1,8 @@
 import { NextRequest } from 'next/server';
 import { queryRAG } from '@/lib/rag';
-import { withAuth, parseBody, apiSuccess } from '@/lib/api-utils';
+import { withAuth, parseBody, apiSuccess, apiError } from '@/lib/api-utils';
 import { searchSchema } from '@/lib/validation';
+import { checkUsageLimit, incrementUsage } from '@/lib/billing';
 import { z } from 'zod';
 
 // ============================================================
@@ -10,6 +11,15 @@ import { z } from 'zod';
 // ============================================================
 
 export const POST = withAuth(async (req: NextRequest, { user }) => {
+    // Check usage limits
+    const usage = await checkUsageLimit(user.id, 'search_count');
+    if (!usage.allowed) {
+        return apiError(
+            `Daily search limit reached (${usage.current}/${usage.limit}). Upgrade to Pro for unlimited searches.`,
+            429
+        );
+    }
+
     const parsed = await parseBody(req, searchSchema);
     if (!parsed.success) return parsed.response;
 
@@ -24,6 +34,9 @@ export const POST = withAuth(async (req: NextRequest, { user }) => {
         maxResults,
         includeAttachments: true,
     });
+
+    // Increment usage counter on success
+    await incrementUsage(user.id, 'search_count');
 
     return apiSuccess(result);
 });

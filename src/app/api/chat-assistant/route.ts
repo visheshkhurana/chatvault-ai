@@ -5,6 +5,7 @@ import { withAuth, parseBody, apiSuccess, apiError } from '@/lib/api-utils';
 import { hybridSearch } from '@/lib/embeddings';
 import { supabaseAdmin } from '@/lib/supabase';
 import { classifyIntent, type ClassifiedIntent } from '@/lib/intent-classifier';
+import { checkUsageLimit, incrementUsage } from '@/lib/billing';
 
 // ============================================================
 // Chat Assistant API - Intent-Routed Conversational AI
@@ -75,6 +76,15 @@ interface EnhancedResponse {
 // --- Main Handler ---
 
 export const POST = withAuth(async (req: NextRequest, { user }) => {
+    // Check usage limits
+    const usage = await checkUsageLimit(user.id, 'assistant_count');
+    if (!usage.allowed) {
+        return apiError(
+            `Daily assistant limit reached (${usage.current}/${usage.limit}). Upgrade to Pro for unlimited access.`,
+            429
+        );
+    }
+
     const parsed = await parseBody(req, chatAssistantSchema);
     if (!parsed.success) return parsed.response;
 
@@ -134,6 +144,10 @@ export const POST = withAuth(async (req: NextRequest, { user }) => {
         }
 
         response.intent = classified.intent;
+
+        // Increment usage counter on success
+        await incrementUsage(user.id, 'assistant_count');
+
         return apiSuccess(response);
 
     } catch (error) {

@@ -150,6 +150,93 @@ Provide a detailed JSON analysis with the following structure:
     };
 }
 
+async function analyzeGroupChat(
+    userId: string,
+    chatData: any,
+    messages: any[]
+): Promise<any> {
+    const recentMessages = messages.slice(0, 300).reverse();
+
+    // Compute stats locally first
+    const senderCounts: Record<string, number> = {};
+    const senderChars: Record<string, number> = {};
+    const hourCounts: number[] = new Array(24).fill(0);
+    const dayCounts: Record<string, number> = {};
+
+    for (const msg of recentMessages) {
+        const sender = msg.sender_name || msg.sender_id || 'Unknown';
+        senderCounts[sender] = (senderCounts[sender] || 0) + 1;
+        senderChars[sender] = (senderChars[sender] || 0) + (msg.content?.length || 0);
+
+        const d = new Date(msg.timestamp || msg.created_at);
+        hourCounts[d.getHours()]++;
+        const dayKey = d.toISOString().split('T')[0];
+        dayCounts[dayKey] = (dayCounts[dayKey] || 0) + 1;
+    }
+
+    // Top 10 senders by message count
+    const topSenders = Object.entries(senderCounts)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 10)
+        .map(([name, count]) => ({
+            name,
+            count,
+            avgLength: Math.round((senderChars[name] || 0) / count),
+            percentage: Math.round((count / recentMessages.length) * 100),
+        }));
+
+    // Peak hours
+    const peakHour = hourCounts.indexOf(Math.max(...hourCounts));
+
+    // Ask LLM for topic analysis
+    const sampleMessages = recentMessages
+        .filter(m => m.content && m.content.length > 10)
+        .slice(0, 100);
+
+    const topicPrompt = `Analyze this group chat and identify themes, discussion topics, and group dynamics.
+
+Chat Title: ${chatData.title}
+Participants: ${(chatData.participants || []).join(', ')}
+Total messages analyzed: ${recentMessages.length}
+
+Sample messages:
+${sampleMessages.map(m => `[${m.sender_name || 'Unknown'}]: ${m.content?.slice(0, 200)}`).join('\n')}
+
+Provide JSON:
+{
+  "topics": [{"topic": "<name>", "frequency": "<high|medium|low>", "description": "<1 sentence>"}],
+  "groupDynamics": "<1-2 sentence description of group dynamics>",
+  "keyDecisions": ["<recent decisions made in the group>"],
+  "actionItems": ["<pending action items or tasks mentioned>"],
+  "mood": "<overall group mood: positive, neutral, productive, tense, etc>"
+}`;
+
+    const response = await openai.chat.completions.create({
+        model: LLM_MODEL,
+        messages: [{ role: 'user', content: topicPrompt }],
+        response_format: { type: 'json_object' },
+        temperature: 0.7,
+        max_tokens: 1500,
+    });
+
+    const content = response.choices[0].message.content;
+    const analysis = content ? JSON.parse(content) : {};
+
+    return {
+        chatTitle: chatData.title,
+        participantCount: (chatData.participants || []).length,
+        messagesAnalyzed: recentMessages.length,
+        topSenders,
+        peakHour,
+        activityByHour: hourCounts,
+        topics: analysis.topics || [],
+        groupDynamics: analysis.groupDynamics || '',
+        keyDecisions: analysis.keyDecisions || [],
+        actionItems: analysis.actionItems || [],
+        mood: analysis.mood || 'neutral',
+    };
+}
+
 async function analyzeTimeline(
     userId: string,
     chatData: any,
@@ -289,6 +376,29 @@ export const GET = withAuth(async (request: NextRequest, { user }) => {
             const timeline = await analyzeTimeline(user.id, chat, filteredMessages);
 
             return apiSuccess(timeline);
+        } else if (action === 'group') {
+            const chatId = searchParams.get('chatId');
+            if (!chatId) {
+                return apiError('chatId is required', 400);
+            }
+
+            const { chat, messages } = await fetchChatMessages(user.id, chatId);
+            if (!chat) return apiError('Chat not found', 404);
+            if (messages.length === 0) return apiError('No messages found', 404);
+
+            const period = searchParams.get('period') || 'all';
+            let filteredMessages = messages;
+            if (period !== 'all') {
+                const days = parseInt(period);
+                const cutoffDate = new Date();
+                cutoffDate.setDate(cutoffDate.getDate() - days);
+                filteredMessages = messages.filter(
+                    (msg) => new Date(msg.created_at) >= cutoffDate
+                );
+            }
+
+            const groupAnalysis = await analyzeGroupChat(user.id, chat, filteredMessages);
+            return apiSuccess(groupAnalysis);
         } else {
             return apiError('Invalid action parameter', 400);
         }

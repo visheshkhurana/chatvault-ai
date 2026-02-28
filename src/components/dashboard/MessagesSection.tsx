@@ -53,6 +53,7 @@ interface Attachment {
   storage_key: string | null;
   url: string;
   created_at: string;
+  transcript?: string | null;
   messages?: { sender_name: string; timestamp: string; chat_id: string };
 }
 
@@ -222,7 +223,7 @@ export default function MessagesSection() {
     // Join with messages to get sender & chat info
     const { data } = await supabase
       .from('attachments')
-      .select('*, messages(sender_name, timestamp, chat_id)')
+      .select('*, transcript, messages(sender_name, timestamp, chat_id)')
       .order('created_at', { ascending: false })
       .limit(300);
     setAttachments(data || []);
@@ -639,10 +640,18 @@ export default function MessagesSection() {
                                     <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium capitalize ${colorClass}`}>
                                       {att.file_type}
                                     </span>
+                                    {att.transcript && (
+                                      <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-600">
+                                        📝 Transcribed
+                                      </span>
+                                    )}
                                     {(att.file_size_bytes || att.file_size) > 0 && (
                                       <span className="text-[10px] text-surface-400">{fileSize(att.file_size_bytes || att.file_size)}</span>
                                     )}
                                   </div>
+                                  {att.transcript && (
+                                    <p className="mt-1 text-[11px] text-surface-500 line-clamp-2 italic">"{att.transcript.slice(0, 100)}{att.transcript.length > 100 ? '…' : ''}"</p>
+                                  )}
                                   {chatName && (
                                     <div className="flex items-center gap-1 mt-1.5 text-[11px] text-surface-400">
                                       <MessageSquare className="w-3 h-3" />
@@ -790,6 +799,14 @@ export default function MessagesSection() {
                               <audio controls className="w-full">
                                 <source src={preview.signedUrl} type={att.mime_type || 'audio/ogg'} />
                               </audio>
+                              {att.transcript && (
+                                <div className="mt-4 p-3 bg-surface-50 rounded-xl border border-surface-100">
+                                  <p className="text-xs font-medium text-surface-500 mb-1.5 flex items-center gap-1">
+                                    <span>📝</span> Transcription
+                                  </p>
+                                  <p className="text-sm text-surface-700 leading-relaxed whitespace-pre-wrap">{att.transcript}</p>
+                                </div>
+                              )}
                             </div>
                           ) : att.mime_type === 'application/pdf' ? (
                             <iframe src={preview.signedUrl} className="w-full h-[60vh] rounded-lg border" title={att.file_name} />

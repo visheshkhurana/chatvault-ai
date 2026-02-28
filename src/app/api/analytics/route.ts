@@ -285,14 +285,108 @@ export const GET = withAuth(async (req: NextRequest, { user }) => {
         return a.hour - b.hour;
       });
 
-    return apiSuccess( {
+    // 9. PERIOD-OVER-PERIOD COMPARISON
+    const periodDays = period === '7d' ? 7 : period === '90d' ? 90 : 30;
+    const prevStart = new Date(startDate);
+    prevStart.setDate(prevStart.getDate() - periodDays);
+    const { data: prevMessages } = await supabaseAdmin
+      .from('messages')
+      .select('id', { count: 'exact' })
+      .eq('user_id', userId)
+      .gte('created_at', prevStart.toISOString())
+      .lt('created_at', startDate.toISOString());
+    const prevCount = prevMessages?.length || 0;
+    const changePercent = prevCount > 0
+      ? Math.round(((messages.length - prevCount) / prevCount) * 100)
+      : messages.length > 0 ? 100 : 0;
+
+    // 10. COMMITMENT STATS
+    const { data: commitments } = await supabaseAdmin
+      .from('commitments')
+      .select('id, status, priority')
+      .eq('user_id', userId);
+    const pendingCommitments = commitments?.filter((c: any) => c.status === 'pending').length || 0;
+    const completedCommitments = commitments?.filter((c: any) => c.status === 'completed').length || 0;
+    const totalCommitments = commitments?.length || 0;
+
+    // 11. UNIQUE CONTACTS count
+    const uniqueContacts = contactMap.size;
+
+    // 12. SENT vs RECEIVED ratio
+    const sentMessages = messages.filter((m: any) => m.is_from_me).length;
+    const receivedMessages = messages.length - sentMessages;
+
+    // 13. STREAK — consecutive days with messages
+    const sortedDates = [...volumeMap.keys()].sort();
+    let currentStreak = 0;
+    let maxStreak = 0;
+    for (let i = 0; i < sortedDates.length; i++) {
+      if (i === 0) { currentStreak = 1; }
+      else {
+        const prev = new Date(sortedDates[i - 1]);
+        const curr = new Date(sortedDates[i]);
+        const diffDays = (curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24);
+        currentStreak = diffDays <= 1 ? currentStreak + 1 : 1;
+      }
+      maxStreak = Math.max(maxStreak, currentStreak);
+    }
+
+    // Enrich top contacts with names
+    const contactIds = topContacts.map((c) => c.contactId);
+    let contactNames = new Map<string, string>();
+    if (contactIds.length > 0) {
+      const { data: contacts } = await supabaseAdmin
+        .from('contacts')
+        .select('id, name, display_name')
+        .in('id', contactIds);
+      (contacts || []).forEach((c: any) => {
+        contactNames.set(c.id, c.display_name || c.name || 'Unknown');
+      });
+    }
+
+    const enrichedTopContacts = topContacts.map((c) => ({
+      ...c,
+      name: contactNames.get(c.contactId) || 'Unknown',
+    }));
+
+    // Enrich chat activity with titles
+    const chatIds = chatActivity.map((c) => c.chatId);
+    let chatTitles = new Map<string, string>();
+    if (chatIds.length > 0) {
+      const { data: chats } = await supabaseAdmin
+        .from('chats')
+        .select('id, title')
+        .in('id', chatIds);
+      (chats || []).forEach((c: any) => {
+        chatTitles.set(c.id, c.title || 'Unknown Chat');
+      });
+    }
+
+    const enrichedChatActivity = chatActivity.map((c) => ({
+      ...c,
+      title: chatTitles.get(c.chatId) || 'Unknown Chat',
+    }));
+
+    return apiSuccess({
       period,
       startDate: startDateStr,
       endDate: endDateStr,
       totalMessages: messages.length,
+      sentMessages,
+      receivedMessages,
+      uniqueContacts,
+      activeDays: volumeMap.size,
+      maxStreak,
+      changePercent,
+      previousPeriodMessages: prevCount,
+      commitmentStats: {
+        pending: pendingCommitments,
+        completed: completedCommitments,
+        total: totalCommitments,
+      },
       messageVolume,
-      topContacts,
-      chatActivity,
+      topContacts: enrichedTopContacts,
+      chatActivity: enrichedChatActivity,
       messageTypeBreakdown,
       hourlyDistribution,
       responseTimeStats,
