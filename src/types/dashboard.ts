@@ -138,11 +138,12 @@ export type TabType =
   | 'platforms'
   | 'response-suggestions'
   | 'agentic-tasks'
+    | 'relationships'
   // Legacy tab aliases (mapped to new tabs in page.tsx)
   | 'search'
   | 'chats'
   | 'attachments'
-  | 'summaries'
+    'summaries'
   | 'contacts'
   | 'sentiment'
   | 'labels'
