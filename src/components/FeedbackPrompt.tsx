@@ -164,4 +164,4 @@ export default function FeedbackPrompt({ userId, daysActive = 0, onDismiss }: Fe
               )}
         </div>
       );
-}</div>
+}
