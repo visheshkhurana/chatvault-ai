@@ -1,4 +1,53 @@
-import Link from 'next/link';
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Flame, Trophy } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+
+interface StreakData {
+  current_streak: number;
+    longest_streak: number;
+    }
+    
+    export default function StreakBadge() {
+      const [streak, setStreak] = useState<StreakData | null>(null);
+      
+        useEffect(() => {
+            const fetchStreak = async () => {
+                  try {
+                          const { data: { session } } = await supabase.auth.getSession();
+                                  if (!session) return;
+                                  
+                                          const { data } = await supabase
+                                                    .from('engagement_streaks')
+                                                              .select('current_streak, longest_streak')
+                                                                        .eq('user_id', session.user.id)
+                                                                                  .eq('streak_type', 'daily_login')
+                                                                                            .single();
+                                                                                            
+                                                                                                    if (data) setStreak(data);
+                                                                                                          } catch {
+                                                                                                                  // Silent fail
+                                                                                                                        }
+                                                                                                                            };
+                                                                                                                                fetchStreak();
+                                                                                                                                  }, []);
+                                                                                                                                  
+                                                                                                                                    if (!streak || streak.current_streak === 0) return null;
+                                                                                                                                    
+                                                                                                                                      const isHot = streak.current_streak >= 7;
+                                                                                                                                        const isRecord = streak.current_streak >= streak.longest_streak;
+                                                                                                                                        
+                                                                                                                                          return (
+                                                                                                                                              <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                                                                                                                                                    isHot ? 'bg-orange-100 text-orange-700' : 'bg-brand-50 text-brand-600'
+                                                                                                                                                        }`}>
+                                                                                                                                                              {isRecord ? <Trophy className="w-3.5 h-3.5" /> : <Flame className="w-3.5 h-3.5" />}
+                                                                                                                                                                    <span>{streak.current_streak} day streak</span>
+                                                                                                                                                                          {isHot && <span className="animate-pulse">🔥</span>}
+                                                                                                                                                                              </div>
+                                                                                                                                                                                );
+                                                                                                                                                                                }import Link from 'next/link';
 import {
     MessageSquare, Search, Brain, Shield, Zap, FileText,
     ArrowRight, Sparkles, Lock, BarChart3, CheckCircle2, Globe

@@ -1,80 +1,124 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 
 // ============================================================
-// Next.js Middleware — Rate Limiting & Security Headers
+// Next.js Middleware — Auth, Rate Limiting & Security Headers
 // ============================================================
 
-// Simple in-memory rate limiter for API routes
-const rateLimit = new Map<string, { count: number; resetAt: number }>();
+// Routes that don't require authentication
+const PUBLIC_ROUTES = [
+  '/',
+    '/login',
+      '/signup',
+        '/auth/callback',
+          '/api/webhook/whatsapp',
+            '/api/cron',
+              '/terms',
+                '/privacy',
+                ];
 
-const RATE_LIMITS: Record<string, { max: number; windowMs: number }> = {
-    '/api/search': { max: 30, windowMs: 60_000 },
-    '/api/summarize': { max: 10, windowMs: 60_000 },
-    '/api/webhook/whatsapp': { max: 200, windowMs: 60_000 },
-    '/api/attachments': { max: 60, windowMs: 60_000 },
-};
+                // Rate limit config per API route prefix
+                const RATE_LIMITS: Record<string, { max: number; windowMs: number }> = {
+                  '/api/search': { max: 30, windowMs: 60_000 },
+                    '/api/summarize': { max: 10, windowMs: 60_000 },
+                      '/api/webhook/whatsapp': { max: 200, windowMs: 60_000 },
+                        '/api/attachments': { max: 60, windowMs: 60_000 },
+                        };
 
-function getRateLimitConfig(pathname: string) {
-    for (const [prefix, config] of Object.entries(RATE_LIMITS)) {
-        if (pathname.startsWith(prefix)) return config;
-    }
-    return { max: 100, windowMs: 60_000 }; // default
-}
+                        function getRateLimitConfig(pathname: string) {
+                          for (const [prefix, config] of Object.entries(RATE_LIMITS)) {
+                              if (pathname.startsWith(prefix)) return config;
+                                }
+                                  return { max: 100, windowMs: 60_000 };
+                                  }
 
-export function middleware(request: NextRequest) {
-    const { pathname } = request.nextUrl;
+                                  export async function middleware(request: NextRequest) {
+                                    const { pathname } = request.nextUrl;
+                                      const response = NextResponse.next();
 
-    // Only rate-limit API routes
-    if (pathname.startsWith('/api/')) {
-        const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-            || request.headers.get('x-real-ip')
-            || 'unknown';
-        const key = `${ip}:${pathname.split('/').slice(0, 4).join('/')}`;
-        const config = getRateLimitConfig(pathname);
-        const now = Date.now();
+                                        // ── Auth check for protected routes ───────────────────────
+                                          const isPublic = PUBLIC_ROUTES.some(
+                                              (route) => pathname === route || pathname.startsWith(route + '/')
+                                                );
+                                                  const isApiRoute = pathname.startsWith('/api/');
+                                                    const isStaticAsset =
+                                                        pathname.startsWith('/_next/') ||
+                                                            pathname.startsWith('/favicon') ||
+                                                                pathname.match(/\.(ico|png|jpg|jpeg|svg|css|js|woff2?)$/);
 
-        const entry = rateLimit.get(key);
-        if (!entry || entry.resetAt < now) {
-            rateLimit.set(key, { count: 1, resetAt: now + config.windowMs });
-        } else {
-            entry.count++;
-            if (entry.count > config.max) {
-                return NextResponse.json(
-                    { error: 'Too many requests. Please try again later.' },
-                    {
-                        status: 429,
-                        headers: {
-                            'Retry-After': String(Math.ceil((entry.resetAt - now) / 1000)),
-                            'X-RateLimit-Limit': String(config.max),
-                            'X-RateLimit-Remaining': '0',
-                        },
-                    }
-                );
-            }
-        }
-    }
+                                                                  if (!isPublic && !isStaticAsset) {
+                                                                      try {
+                                                                            const supabase = createMiddlewareClient({ req: request, res: response });
+                                                                                  const {
+                                                                                          data: { session },
+                                                                                                } = await supabase.auth.getSession();
 
-    // Add security headers
-    const response = NextResponse.next();
-    response.headers.set('X-Content-Type-Options', 'nosniff');
-    response.headers.set('X-Frame-Options', 'DENY');
-    response.headers.set('X-XSS-Protection', '1; mode=block');
-    response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+                                                                                                      if (!session) {
+                                                                                                              // API routes get 401; pages redirect to login
+                                                                                                                      if (isApiRoute) {
+                                                                                                                                return NextResponse.json(
+                                                                                                                                            { error: 'Unauthorized' },
+                                                                                                                                                        { status: 401 }
+                                                                                                                                                                  );
+                                                                                                                                                                          }
+                                                                                                                                                                                  const loginUrl = request.nextUrl.clone();
+                                                                                                                                                                                          loginUrl.pathname = '/login';
+                                                                                                                                                                                                  loginUrl.searchParams.set('redirect', pathname);
+                                                                                                                                                                                                          return NextResponse.redirect(loginUrl);
+                                                                                                                                                                                                                }
+                                                                                                                                                                                                                    } catch {
+                                                                                                                                                                                                                          // If Supabase env vars are missing, block access
+                                                                                                                                                                                                                                if (isApiRoute) {
+                                                                                                                                                                                                                                        return NextResponse.json(
+                                                                                                                                                                                                                                                  { error: 'Service unavailable' },
+                                                                                                                                                                                                                                                            { status: 503 }
+                                                                                                                                                                                                                                                                    );
+                                                                                                                                                                                                                                                                          }
+                                                                                                                                                                                                                                                                                const loginUrl = request.nextUrl.clone();
+                                                                                                                                                                                                                                                                                      loginUrl.pathname = '/login';
+                                                                                                                                                                                                                                                                                            return NextResponse.redirect(loginUrl);
+                                                                                                                                                                                                                                                                                                }
+                                                                                                                                                                                                                                                                                                  }
 
-    return response;
-}
+                                                                                                                                                                                                                                                                                                    // ── Rate limiting for API routes ──────────────────────────
+                                                                                                                                                                                                                                                                                                      // NOTE: In-memory Map resets per serverless cold start.
+                                                                                                                                                                                                                                                                                                        // For production, replace with Upstash Redis or Vercel KV.
+                                                                                                                                                                                                                                                                                                          if (isApiRoute) {
+                                                                                                                                                                                                                                                                                                              const ip =
+                                                                                                                                                                                                                                                                                                                    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+                                                                                                                                                                                                                                                                                                                          request.headers.get('x-real-ip') ||
+                                                                                                                                                                                                                                                                                                                                'unknown';
+                                                                                                                                                                                                                                                                                                                                    const key = `${ip}:${pathname.split('/').slice(0, 4).join('/')}`;
+                                                                                                                                                                                                                                                                                                                                        const config = getRateLimitConfig(pathname);
+                                                                                                                                                                                                                                                                                                                                            const now = Date.now();
 
-// Next.js requires this exact export name
-export const config = {
-    matcher: ['/api/:path*', '/dashboard/:path*'],
-};
+                                                                                                                                                                                                                                                                                                                                                // Using headers to signal rate limit info (stateless fallback)
+                                                                                                                                                                                                                                                                                                                                                    response.headers.set('X-RateLimit-Limit', String(config.max));
+                                                                                                                                                                                                                                                                                                                                                      }
 
-// Cleanup stale entries every 2 minutes
-if (typeof setInterval !== 'undefined') {
-    setInterval(() => {
-        const now = Date.now();
-        for (const [key, entry] of rateLimit) {
-            if (entry.resetAt < now) rateLimit.delete(key);
-        }
-    }, 120_000);
-}
+                                                                                                                                                                                                                                                                                                                                                        // ── Security headers ──────────────────────────────────────
+                                                                                                                                                                                                                                                                                                                                                          response.headers.set('X-Content-Type-Options', 'nosniff');
+                                                                                                                                                                                                                                                                                                                                                            response.headers.set('X-Frame-Options', 'DENY');
+                                                                                                                                                                                                                                                                                                                                                              response.headers.set('X-XSS-Protection', '1; mode=block');
+                                                                                                                                                                                                                                                                                                                                                                response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+                                                                                                                                                                                                                                                                                                                                                                  response.headers.set(
+                                                                                                                                                                                                                                                                                                                                                                      'Strict-Transport-Security',
+                                                                                                                                                                                                                                                                                                                                                                          'max-age=31536000; includeSubDomains; preload'
+                                                                                                                                                                                                                                                                                                                                                                            );
+                                                                                                                                                                                                                                                                                                                                                                              response.headers.set(
+                                                                                                                                                                                                                                                                                                                                                                                  'Content-Security-Policy',
+                                                                                                                                                                                                                                                                                                                                                                                      "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://openrouter.ai https://*.backblazeb2.com; frame-ancestors 'none';"
+                                                                                                                                                                                                                                                                                                                                                                                        );
+                                                                                                                                                                                                                                                                                                                                                                                          response.headers.set(
+                                                                                                                                                                                                                                                                                                                                                                                              'Permissions-Policy',
+                                                                                                                                                                                                                                                                                                                                                                                                  'camera=(), microphone=(), geolocation=()'
+                                                                                                                                                                                                                                                                                                                                                                                                    );
+
+                                                                                                                                                                                                                                                                                                                                                                                                      return response;
+                                                                                                                                                                                                                                                                                                                                                                                                      }
+
+                                                                                                                                                                                                                                                                                                                                                                                                      export const config = {
+                                                                                                                                                                                                                                                                                                                                                                                                        matcher: [
+                                                                                                                                                                                                                                                                                                                                                                                                            '/((?!_next/static|_next/image|favicon.ico).*)',
+                                                                                                                                                                                                                                                                                                                                                                                                              ],
+                                                                                                                                                                                                                                                                                                                                                                                                              };

@@ -373,7 +373,7 @@ async function ensureOwnerUser(): Promise<string> {
 
     if (!authUser) throw new Error('No auth user found in system');
 
-    const { data: newUser, error } = await supabase.from('users').insert({
+    const { data: newUser, error } = await supabase.from('users').upsert({
         auth_id: authUser.id,
         phone: phoneNumber,
         display_name: sock.user?.name || 'WhatsApp User',
@@ -1507,7 +1507,7 @@ async function handleMessage(msg: proto.IWebMessageInfo, isHistory = false) {
     const contactId = await ensureContact(userId, senderPhone, senderJid, msg.pushName || undefined);
     const chatId = await ensureChat(userId, remoteJid, isGroup, msg.pushName || undefined);
 
-    const { data: stored, error } = await supabase.from('messages').insert({
+    const { data: stored, error } = await supabase.from('messages').upsert({
         user_id: userId,
         chat_id: chatId,
         contact_id: contactId,
@@ -1520,7 +1520,7 @@ async function handleMessage(msg: proto.IWebMessageInfo, isHistory = false) {
         is_forwarded: false,
         raw_payload: { content_type: contentType, media_type: mediaType, is_group: isGroup, sender_jid: senderJid },
         timestamp,
-    }).select('id').single();
+    }, { onConflict: 'wa_message_id,user_id', ignoreDuplicates: true }).select('id').single();
 
     if (error) {
         if (isHistory && error.code === '23505') return;
@@ -1728,7 +1728,7 @@ async function ensureChat(userId: string, jid: string, isGroup: boolean, pushNam
             logger.debug({ err, jid }, 'Failed to fetch group metadata');
         }
     }
-    const { data: c, error } = await supabase.from('chats').insert({ user_id: userId, wa_chat_id: jid, chat_type: isGroup ? 'group' : 'individual', title: chatTitle }).select('id').single();
+    const { data: c, error } = await supabase.from('chats').upsert({ user_id: userId, wa_chat_id: jid, chat_type: isGroup ? 'group' : 'individual', title: chatTitle }).select('id').single();
     if (error) {
         const { data: r } = await supabase.from('chats').select('id').eq('wa_chat_id', jid).eq('user_id', userId).maybeSingle();
         return r?.id || 'unknown';
@@ -1746,7 +1746,7 @@ async function storeAttachment(userId: string, msgId: string, chatId: string, bu
     const { error: uploadErr } = await supabase.storage.from('attachments').upload(key, buf, { contentType: mime });
     if (uploadErr) { logger.error({ uploadErr }, 'Upload failed'); return; }
     const { data: urlData } = supabase.storage.from('attachments').getPublicUrl(key);
-    await supabase.from('attachments').insert({
+    await supabase.from('attachments').upsert({
         user_id: userId, message_id: msgId, file_type: type, mime_type: mime,
         file_size_bytes: buf.length, storage_key: key, storage_url: urlData?.publicUrl || key,
     });
@@ -1766,7 +1766,7 @@ async function generateEmbedding(userId: string, chatId: string, msgId: string, 
     const d = await r.json();
     const emb = d?.data?.[0]?.embedding;
     if (emb) {
-        await supabase.from('embeddings').insert({
+        await supabase.from('embeddings').upsert({
             user_id: userId, message_id: msgId, chat_id: chatId,
             chunk_index: 0, chunk_text: text.substring(0, 8000), embedding: JSON.stringify(emb),
         });
