@@ -26,6 +26,10 @@ import SharedSpacesSection from '@/components/dashboard/SharedSpacesSection';
 import PlatformsSection from '@/components/dashboard/PlatformsSection';
 import ResponseSuggestionsSection from '@/components/dashboard/ResponseSuggestionsSection';
 import AgenticTasksSection from '@/components/dashboard/AgenticTasksSection';
+import RelationshipSection from '@/components/dashboard/RelationshipSection';
+import StreakBadge from '@/components/StreakBadge';
+import FeedbackPrompt from '@/components/FeedbackPrompt';
+import { useEngagement } from '@/hooks/useEngagement';
 
 interface BridgeStatus {
   connected: boolean;
@@ -54,6 +58,7 @@ const TAB_TITLES: Record<string, { title: string; subtitle: string }> = {
   platforms: { title: 'Platforms', subtitle: 'Connected services' },
   'response-suggestions': { title: 'Smart Replies', subtitle: 'AI response suggestions' },
   'agentic-tasks': { title: 'Tasks', subtitle: 'Automated actions' },
+  relationships: { title: 'Relationships', subtitle: 'Relationship health scores' },
 };
 
 function resolveTab(tab: TabType): TabType {
@@ -83,6 +88,7 @@ export default function DashboardPage() {
   const bridgeFailCount = useRef(0);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const { streak, daysActive, showFeedback, dismissFeedback, trackPageView } = useEngagement();
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -107,7 +113,8 @@ export default function DashboardPage() {
     const resolved = resolveTab(tab);
     setActiveTab(resolved);
     window.location.hash = resolved;
-  }, []);
+    trackPageView(resolved);
+  }, [trackPageView]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -227,6 +234,7 @@ export default function DashboardPage() {
       case 'platforms': return <PlatformsSection />;
       case 'response-suggestions': return <ResponseSuggestionsSection />;
       case 'agentic-tasks': return <AgenticTasksSection />;
+      case 'relationships': return <RelationshipSection />;
       default: return <AssistantSection bridgeStatus={bridgeStatus.connected ? 'connected' : 'disconnected'} userEmail={user?.email} userName={userName} />;
     }
   };
@@ -258,6 +266,8 @@ export default function DashboardPage() {
               <span className="text-sm text-surface-400 hidden lg:inline">{tabInfo.subtitle}</span>
             </div>
             <div className="flex items-center gap-3">
+              {/* Streak badge */}
+              {streak && streak.current_streak > 0 && <StreakBadge streak={streak} compact />}
               {/* Notification bell */}
               <button
                 onClick={() => handleTabChange('actions')}
@@ -342,6 +352,14 @@ export default function DashboardPage() {
         </div>
       </main>
       <MobileTabBar activeTab={activeTab} onTabChange={handleTabChange} />
+      {showFeedback && user && (
+        <FeedbackPrompt
+          userId={user.id}
+          daysActive={daysActive}
+          onDismiss={dismissFeedback}
+        />
+      )}
+
       {showOnboarding && (
         <OnboardingFlow
           onComplete={() => setShowOnboarding(false)}
