@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import {
   Bot, MessageCircle, ListChecks, Users, Settings, Gift,
   ChevronLeft, ChevronRight, ChevronDown, Command, Wifi, WifiOff, MessageSquare,
-  Sparkles, Mic, BookOpen, Heart, BarChart3, Cake, Globe, Reply, Zap, Brain,
+  Sparkles, Mic, BookOpen, Heart, BarChart3, Cake, Globe, Reply, Zap, Brain, Handshake,
 } from 'lucide-react';
 import { TabType } from '@/types/dashboard';
 
@@ -49,6 +49,7 @@ const featureNavItems: NavItem[] = [
   { icon: Globe, label: 'Shared Spaces', tab: 'shared-spaces', description: 'Family & team' },
   { icon: Reply, label: 'Smart Replies', tab: 'response-suggestions', description: 'AI suggestions' },
   { icon: Zap, label: 'Tasks', tab: 'agentic-tasks', description: 'Automated actions' },
+  { icon: Handshake, label: 'Relationships', tab: 'relationships', description: 'Relationship health' },
 ];
 
 const featureTabs = new Set(featureNavItems.map(i => i.tab));
