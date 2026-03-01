@@ -1,101 +1,120 @@
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-function apiSuccess(data: unknown) {
-    return NextResponse.json({ success: true, data });
+function apiSuccess(data: unknown, status = 200) {
+    return NextResponse.json({ success: true, data }, { status });
 }
 
-function apiError(message: string, status = 400) {
-    return NextResponse.json({ success: false, error: message }, { status });
+function apiError(error: string, status: number) {
+    return NextResponse.json({ success: false, error }, { status });
 }
 
-// GET /api/streaks — get or update streak for current user
-export async function GET() {
+export async function GET(req: NextRequest) {
     try {
-          const supabase = createRouteHandlerClient({ cookies });
-          const { data: { user } } = await supabase.auth.getUser();
-          if (!user) return apiError('Unauthorized', 401);
+        const supabase = createRouteHandlerClient({ cookies });
+        const { data: { session } } = await supabase.auth.getSession();
 
-      const today = new Date().toISOString().split('T')[0];
+    if (!session?.user?.id) {
+        return apiError('unauthorized', 401);
+    }
 
-      // Get existing streak
-      const { data: streak } = await supabase
-            .from('engagement_streaks')
-            .select('*')
-            .eq('user_id', user.id)
-            .maybeSingle();
+    const userId = session.user.id;
+        const today = new Date().toISOString().split('T')[0];
 
-      if (!streak) {
-              // First visit — create streak
-            const newStreak = {
-                      user_id: user.id,
-                      current_streak: 1,
-                      longest_streak: 1,
-                      last_active_date: today,
-                      streak_start_date: today,
-                      total_active_days: 1,
-            };
-              const { data, error } = await supabase
-                .from('engagement_streaks')
-                .upsert(newStreak, { onConflict: 'user_id' })
-                .select()
-                .single();
-              if (error) return apiError('Failed to create streak', 500);
+    // Try to get existing streak
+    const { data: streak, error: fetchError } = await supabase
+        .from('engagement_streaks')
+        .select('current_streak, longest_streak, last_active_date, streak_start_date, total_active_days, streak_type, updated_at')
+        .eq('user_id', userId)
+        .single();
 
-            // Also update users.last_active_at
-            await supabase.from('users').update({ last_active_at: new Date().toISOString() }).eq('id', user.id);
+    // Table missing
+    if (fetchError?.code === '42P01') {
+        console.error('[streaks] Table engagement_streaks does not exist');
+        return apiError('service_unavailable', 503);
+    }
 
-            return apiSuccess(data);
-      }
+    // No streak record yet - create one
+    if (fetchError?.code === 'PGRST116' || !streak) {
+        const { data: newStreak, error: insertError } = await supabase
+        .from('engagement_streaks')
+        .insert({
+            user_id: userId,
+            current_streak: 1,
+            longest_streak: 1,
+            last_active_date: today,
+            streak_start_date: today,
+            total_active_days: 1,
+            streak_type: 'daily',
+        })
+        .select()
+        .single();
 
-      // Calculate streak continuation
-      const lastActive = new Date(streak.last_active_date);
-          const todayDate = new Date(today);
-          const diffDays = Math.floor((todayDate.getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24));
+        if (insertError) {
+            console.error('[streaks] Insert error:', insertError.message);
+            return apiError('failed_to_create_streak', 500);
+        }
 
-      if (diffDays === 0) {
-              // Already visited today — return current streak
-            return apiSuccess(streak);
-      }
+        return apiSuccess(newStreak);
+    }
 
-      let newCurrentStreak = streak.current_streak;
-          let newLongestStreak = streak.longest_streak;
-          let newStreakStart = streak.streak_start_date;
+    // Unexpected fetch error
+    if (fetchError) {
+        console.error('[streaks] Fetch error:', fetchError.message);
+        return apiError('failed_to_fetch_streak', 500);
+    }
 
-      if (diffDays === 1) {
-              // Consecutive day — increment streak
-            newCurrentStreak += 1;
-              if (newCurrentStreak > newLongestStreak) {
-                        newLongestStreak = newCurrentStreak;
-              }
-      } else {
-              // Streak broken — reset
-            newCurrentStreak = 1;
-              newStreakStart = today;
-      }
+    // Calculate streak continuation
+    const lastActive = new Date(streak.last_active_date);
+        const todayDate = new Date(today);
+        const diffDays = Math.floor(
+            (todayDate.getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24)
+            );
 
-      const { data: updated, error } = await supabase
-            .from('engagement_streaks')
-            .update({
-                      current_streak: newCurrentStreak,
-                      longest_streak: newLongestStreak,
-                      last_active_date: today,
-                      streak_start_date: newStreakStart,
-                      total_active_days: streak.total_active_days + 1,
-                      updated_at: new Date().toISOString(),
-            })
-            .eq('user_id', user.id)
-            .select()
-            .single();
+    // Already visited today
+    if (diffDays === 0) {
+        return apiSuccess(streak);
+    }
 
-      if (error) return apiError('Failed to update streak', 500);
+    let newCurrentStreak = streak.current_streak;
+        let newLongestStreak = streak.longest_streak;
+        let newStreakStart = streak.streak_start_date;
 
-      // Also update users.last_active_at
-      await supabase.from('users').update({ last_active_at: new Date().toISOString() }).eq('id', user.id);
+    if (diffDays === 1) {
+        // Consecutive day
+        newCurrentStreak += 1;
+        if (newCurrentStreak > newLongestStreak) {
+            newLongestStreak = newCurrentStreak;
+        }
+    } else {
+        // Streak broken
+        newCurrentStreak = 1;
+        newStreakStart = today;
+    }
 
-      return apiSuccess(updated);
+    const { data: updated, error: updateError } = await supabase
+        .from('engagement_streaks')
+        .update({
+            current_streak: newCurrentStreak,
+            longest_streak: newLongestStreak,
+            last_active_date: today,
+            streak_start_date: newStreakStart,
+            total_active_days: streak.total_active_days + 1,
+            updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', userId)
+        .select()
+        .single();
+
+    if (updateError) {
+        console.error('[streaks] Update error:', updateError.message);
+        return apiError('failed_to_update_streak', 500);
+    }
+
+    return apiSuccess(updated);
     } catch (err) {
-          return apiError('Failed to process streak', 500);
+        console.error('[streaks] Unhandled error:', err instanceof Error ? err.message : err);
+        return apiError('internal_error', 500);
     }
 }
