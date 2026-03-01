@@ -4,7 +4,7 @@ import { useState } from 'react';
 import {
   Bot, MessageSquare, CheckCircle, Users, MoreHorizontal, X,
   Sparkles, Mic, BookOpen, Heart, Brain, BarChart3, Cake, Globe, Reply, Zap,
-  Settings, Gift,
+  Settings, Gift, Handshake,
 } from 'lucide-react';
 import { TabType } from '@/types/dashboard';
 
@@ -31,7 +31,7 @@ const moreTabs: { key: TabType; label: string; icon: typeof Bot }[] = [
   { key: 'shared-spaces', label: 'Shared Spaces', icon: Globe },
   { key: 'response-suggestions', label: 'Smart Replies', icon: Reply },
   { key: 'agentic-tasks', label: 'Tasks', icon: Zap },
-  { key: 'referrals', label: 'Refer Friends', icon: Gift },
+  { key: 'referrals', label: 'Refer Friends', icon: Gift },  { key: 'relationships', label: 'Relationships', icon: Handshake },
   { key: 'settings', label: 'Settings', icon: Settings },
 ];
 
