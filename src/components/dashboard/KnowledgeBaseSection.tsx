@@ -45,7 +45,12 @@ export default function KnowledgeBaseSection() {
                 },
             });
             const data = await response.json();
-            setEntries(data.entries || []);
+            const rawEntries = Array.isArray(data) ? data : (data.entries || []);
+        setEntries(rawEntries.map((e) => ({
+          ...e,
+          is_pinned: e.is_pinned ?? e.pinned ?? false,
+          is_archived: e.is_archived ?? e.archived ?? false,
+        })));
         } catch (err) {
             console.error('Failed to load knowledge base:', err);
         }
@@ -86,13 +91,13 @@ export default function KnowledgeBaseSection() {
 
         try {
             const session = await supabase.auth.getSession();
-            await fetch(`/api/knowledge-base/${entryId}`, {
+            await fetch(`/api/knowledge-base`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${session.data.session?.access_token}`,
                 },
-                body: JSON.stringify({ is_pinned: !entry.is_pinned }),
+                body: JSON.stringify({ entryId, pinned: !entry.is_pinned }),
             });
             setEntries(entries.map(e =>
                 e.id === entryId ? { ...e, is_pinned: !e.is_pinned } : e
@@ -108,13 +113,13 @@ export default function KnowledgeBaseSection() {
 
         try {
             const session = await supabase.auth.getSession();
-            await fetch(`/api/knowledge-base/${entryId}`, {
+            await fetch(`/api/knowledge-base`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${session.data.session?.access_token}`,
                 },
-                body: JSON.stringify({ is_archived: !entry.is_archived }),
+                body: JSON.stringify({ entryId, archived: !entry.is_archived }),
             });
             setEntries(entries.map(e =>
                 e.id === entryId ? { ...e, is_archived: !e.is_archived } : e
@@ -127,11 +132,13 @@ export default function KnowledgeBaseSection() {
     async function deleteEntry(entryId: string) {
         try {
             const session = await supabase.auth.getSession();
-            await fetch(`/api/knowledge-base/${entryId}`, {
+            await fetch(`/api/knowledge-base`, {
                 method: 'DELETE',
                 headers: {
+                    'Content-Type': 'application/json',
                     'Authorization': `Bearer ${session.data.session?.access_token}`,
                 },
+                body: JSON.stringify({ entryId }),
             });
             setEntries(entries.filter(e => e.id !== entryId));
         } catch (err) {
