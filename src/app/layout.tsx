@@ -34,11 +34,11 @@ export const metadata: Metadata = {
     ],
     authors: [{ name: 'Rememora' }],
     creator: 'Rememora',
-    metadataBase: new URL('https://chatvault-ai.vercel.app'),
+    metadataBase: new URL('https://www.rememora.xyz'),
     openGraph: {
         type: 'website',
         locale: 'en_US',
-        url: 'https://chatvault-ai.vercel.app',
+        url: 'https://www.rememora.xyz',
         siteName: 'Rememora',
         title: 'Rememora — Never Lose a WhatsApp Message Again',
         description:
