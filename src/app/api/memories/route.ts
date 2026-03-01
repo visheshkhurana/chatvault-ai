@@ -22,7 +22,7 @@ export const GET = withAuth(async (req: NextRequest, { user }) => {
       .select('id, chat_id, sender_name, text_content, timestamp, chats(title)')
       .eq('user_id', user.id)
       .gte('timestamp', `${currentYear - 3}-01-01T00:00:00`)
-      .lt('timestamp', `${currentYear}T00:00:00`)
+      .lt('timestamp', `${currentYear}-01-01T00:00:00Z`)
       .order('timestamp', { ascending: false });
 
     if (error) {
