@@ -14,7 +14,7 @@ const PUBLIC_ROUTES = [
           '/api/webhook/whatsapp',
             '/api/cron',
               '/terms',
-                '/privacy',
+                '/privacy',  '/api/health',
                 ];
 
                 // Rate limit config per API route prefix
