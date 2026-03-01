@@ -1,89 +1,96 @@
 'use client';
-
 import { useState, useEffect, useCallback } from 'react';
 
 interface StreakData {
     current_streak: number;
     longest_streak: number;
     last_active_date: string;
+    streak_start_date: string;
     total_active_days: number;
+    streak_type: string;
 }
 
 interface EngagementState {
     streak: StreakData | null;
-    daysActive: number;
-    showFeedback: boolean;
     loading: boolean;
+    error: string | null;
 }
+
+const DEFAULT_STREAK: StreakData = {
+    current_streak: 0,
+    longest_streak: 0,
+    last_active_date: '',
+    streak_start_date: '',
+    total_active_days: 0,
+    streak_type: 'daily',
+};
 
 export function useEngagement() {
     const [state, setState] = useState<EngagementState>({
-          streak: null,
-          daysActive: 0,
-          showFeedback: false,
-          loading: true,
+        streak: null,
+        loading: true,
+        error: null,
     });
 
-  // Fetch streak data on mount (also updates streak server-side)
-  useEffect(() => {
-        async function initEngagement() {
-                try {
-                          const res = await fetch('/api/streaks');
-                          const json = await res.json();
-                          if (json.success && json.data) {
-                                      const streakData = json.data as StreakData;
-                                      setState(prev => ({
-                                                    ...prev,
-                                                    streak: streakData,
-                                                    daysActive: streakData.total_active_days,
-                                                    showFeedback: streakData.total_active_days >= 3,
-                                                    loading: false,
-                                      }));
-                          } else {
-                                      setState(prev => ({ ...prev, loading: false }));
-                          }
-                } catch (e) {
-                          console.error('Failed to fetch engagement data:', e);
-                          setState(prev => ({ ...prev, loading: false }));
-                }
-        }
-        initEngagement();
-  }, []);
+const fetchStreak = useCallback(async () => {
+    try {
+        setState((prev) => ({ ...prev, loading: true, error: null }));
 
-  // Track feature usage events
-  const trackEvent = useCallback(async (eventName: string, category?: string, metadata?: Record<string, unknown>) => {
-        try {
-                await fetch('/api/feature-events', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                                      event_name: eventName,
-                                      event_category: category || 'general',
-                                      metadata,
-                          }),
-                });
-        } catch (e) {
-                // Silent fail — analytics should never break UX
-        }
-  }, []);
+    const res = await fetch('/api/streaks', {
+        credentials: 'include',
+    });
 
-  // Track page/tab view
-  const trackPageView = useCallback((tabName: string) => {
-        trackEvent('page_view', 'navigation', { tab: tabName });
-  }, [trackEvent]);
+    if (res.status === 401) {
+        // Not logged in - return defaults silently
+        setState({ streak: DEFAULT_STREAK, loading: false, error: null });
+        return;
+    }
 
-  // Dismiss feedback prompt
-  const dismissFeedback = useCallback(() => {
-        setState(prev => ({ ...prev, showFeedback: false }));
-  }, []);
+    if (res.status === 429) {
+        setState((prev) => ({
+            ...prev,
+            loading: false,
+            error: 'Rate limited. Try again later.',
+        }));
+        return;
+    }
 
-  return {
-        streak: state.streak,
-        daysActive: state.daysActive,
-        showFeedback: state.showFeedback,
-        loading: state.loading,
-        trackEvent,
-        trackPageView,
-        dismissFeedback,
-  };
+    if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setState({
+            streak: DEFAULT_STREAK,
+            loading: false,
+            error: body.error ?? 'Failed to load streak',
+        });
+        return;
+    }
+
+    const body = await res.json();
+
+    if (body.success && body.data) {
+        setState({ streak: body.data, loading: false, error: null });
+    } else {
+        setState({
+            streak: DEFAULT_STREAK,
+            loading: false,
+            error: body.error ?? 'Unknown error',
+        });
+    }
+    } catch (err) {
+        setState({
+            streak: DEFAULT_STREAK,
+            loading: false,
+            error: 'Network error',
+        });
+    }
+}, []);
+
+useEffect(() => {
+    fetchStreak();
+}, [fetchStreak]);
+
+return {
+    ...state,
+    refetch: fetchStreak,
+};
 }
