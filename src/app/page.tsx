@@ -64,7 +64,7 @@ export default function Home() {
                             <Link href="/login" className="btn-primary text-lg px-8 py-4 flex items-center gap-2">
                                 Start Free <ArrowRight className="w-5 h-5" />
                             </Link>
-                            <a href="#features" className="btn-secondary text-lg px-8 py-4">
+                            <a href="#how-it-works" className="btn-secondary text-lg px-8 py-4">
                                 See How It Works
                             </a>
                         </div>
