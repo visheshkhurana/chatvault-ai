@@ -1,10 +1,14 @@
+'use client';
+
 import Link from 'next/link';
+import { useState } from 'react';
 import {
     MessageSquare, Search, Brain, Shield, Zap, FileText,
-    ArrowRight, Sparkles, Lock, BarChart3, CheckCircle2, Globe
+    ArrowRight, Sparkles, Lock, BarChart3, CheckCircle2, Globe, Menu, X
 } from 'lucide-react';
 
 export default function Home() {
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     return (
         <div className="min-h-screen bg-surface-50">
             {/* Navigation */}
@@ -28,8 +32,29 @@ export default function Home() {
                         <Link href="/login" className="px-5 py-2.5 bg-surface-900 text-white rounded-xl text-sm font-semibold hover:bg-surface-800 transition-colors shadow-sm">
                             Get Started Free
                         </Link>
+                        <button
+                            className="md:hidden p-2 rounded-lg text-surface-600 hover:text-surface-900 hover:bg-surface-100 transition-colors"
+                            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                            aria-label="Toggle menu"
+                        >
+                            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                        </button>
                     </div>
                 </div>
+                {/* Mobile menu */}
+                {mobileMenuOpen && (
+                    <div className="md:hidden border-t border-surface-100 bg-white/95 backdrop-blur-xl">
+                        <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col gap-4">
+                            <a href="#features" className="text-sm font-medium text-surface-600 hover:text-surface-900 transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>Features</a>
+                            <a href="#how-it-works" className="text-sm font-medium text-surface-600 hover:text-surface-900 transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>How it Works</a>
+                            <a href="#security" className="text-sm font-medium text-surface-600 hover:text-surface-900 transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>Security</a>
+                            <div className="flex flex-col gap-2 pt-2 border-t border-surface-100">
+                                <Link href="/login" className="btn-ghost text-sm text-center py-2" onClick={() => setMobileMenuOpen(false)}>Sign In</Link>
+                                <Link href="/login" className="px-5 py-2.5 bg-surface-900 text-white rounded-xl text-sm font-semibold hover:bg-surface-800 transition-colors shadow-sm text-center" onClick={() => setMobileMenuOpen(false)}>Get Started Free</Link>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </nav>
 
             {/* Hero Section */}
