@@ -30,6 +30,7 @@ export async function GET() {
         const data = await res.json();
         return NextResponse.json({
             connected: data.connected ?? false,
+            status: data.status || 'disconnected',
             phone: data.phone || null,
             name: data.name || null,
             sync: data.sync || null,
