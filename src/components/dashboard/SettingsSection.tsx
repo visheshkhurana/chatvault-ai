@@ -45,7 +45,7 @@ export default function SettingsSection() {
     loadSettings();
     checkWhatsApp();
     checkGoogleCalendar();
-    const interval = setInterval(checkWhatsApp, 5000);
+    const interval = setInterval(checkWhatsApp, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -62,9 +62,27 @@ export default function SettingsSection() {
 
   async function checkWhatsApp() {
     try {
-      const res = await fetch(BRIDGE_URL + '/status');
-      if (res.ok) {
-        const data = await res.json();
+      let data: any = null;
+
+      // Try direct bridge call first
+      try {
+        const res = await fetch(BRIDGE_URL + '/status');
+        if (res.ok) data = await res.json();
+      } catch {
+        // CORS or network failure — fall through to proxy
+      }
+
+      // Fall back to server-side proxy (no CORS issues)
+      if (!data) {
+        try {
+          const proxyRes = await fetch('/api/bridge-status');
+          if (proxyRes.ok) data = await proxyRes.json();
+        } catch {
+          // Server proxy also failed
+        }
+      }
+
+      if (data) {
         setWaStatus({
           connected: data.connected || data.status === 'connected',
           status: data.status || 'disconnected',
@@ -75,6 +93,8 @@ export default function SettingsSection() {
         if (data.connected || data.status === 'connected') {
           setShowQR(false);
         }
+      } else {
+        setWaStatus({ connected: false, status: 'error' });
       }
     } catch (err) {
       setWaStatus({ connected: false, status: 'error' });
