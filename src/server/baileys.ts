@@ -46,6 +46,8 @@ let ownerUserId: string | null = null;
 let ownerJid: string | null = null;let ownerLid: string | null = null;
 
 let reconnectAttempts = 0;
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+const MAX_RECONNECT_ATTEMPTS = 10; // After this many rapid failures, do a full auth reset
 const MAX_RECONNECT_DELAY = 300000; // 5 minutes max
 let lastEventAt: Date | null = null; // Track last Baileys event for staleness detection
 const STALE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes without events = stale
@@ -179,7 +181,9 @@ app.post('/reset', async (req: any, res: any) => {
                                     logger.error({ err }, 'Failed to clear Supabase auth');
                     }
                     // Restart connection (will show QR)
-                    setTimeout(startBaileys, 1000);
+                    if (reconnectTimer) clearTimeout(reconnectTimer);
+
+                    reconnectTimer = setTimeout(startBaileys, 1000);
                     res.json({ ok: true, message: 'Auth cleared, reconnecting...' });
         } catch (err) {
                     logger.error({ err }, 'Reset failed');
@@ -205,7 +209,9 @@ app.post('/reconnect', async (req: any, res: any) => {
         connectionStatus = 'disconnected';
         reconnectAttempts = 0;
         // Restart without clearing auth — will use existing credentials
-        setTimeout(startBaileys, 1000);
+        if (reconnectTimer) clearTimeout(reconnectTimer);
+
+        reconnectTimer = setTimeout(startBaileys, 1000);
         res.json({ ok: true, message: 'Reconnecting with existing auth...' });
     } catch (err) {
         logger.error({ err }, 'Reconnect failed');
@@ -480,7 +486,9 @@ function startKeepaliveTimer() {
             connectionStatus = 'disconnected';
             reconnectAttempts = 0;
             lastEventAt = null;
-            setTimeout(startBaileys, 2000);
+            if (reconnectTimer) clearTimeout(reconnectTimer);
+
+            reconnectTimer = setTimeout(startBaileys, 2000);
         }
     }, 2 * 60_000); // Check every 2 minutes (less aggressive)
 }
@@ -493,6 +501,18 @@ function stopKeepaliveTimer() {
 }
 
 async function startBaileys() {
+    // Cancel any pending reconnect timer to prevent overlapping restarts
+    if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+    }
+
+    // Clean up existing socket before creating a new one (prevents conflict loop)
+    if (sock) {
+        try { sock.ev.removeAllListeners(); sock.end(undefined); } catch (_) {}
+        sock = null;
+    }
+
     if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true });
 
     const localFiles = fs.existsSync(AUTH_DIR) ? fs.readdirSync(AUTH_DIR) : [];
@@ -554,9 +574,16 @@ async function startBaileys() {
             logDebugEvent('connection', { state: 'close', code, error: lastDisconnect?.error?.message, attempt: reconnectAttempts + 1 });
             if (code !== DisconnectReason.loggedOut) {
                 reconnectAttempts++;
+                if (reconnectAttempts > MAX_RECONNECT_ATTEMPTS) {
+                    logger.error({ attempts: reconnectAttempts }, 'Max reconnect attempts reached. Clearing auth and restarting fresh.');
+                    if (fs.existsSync(AUTH_DIR)) fs.rmSync(AUTH_DIR, { recursive: true });
+                    reconnectAttempts = 0;
+                }
                 const delay = Math.min(5000 * Math.pow(2, reconnectAttempts - 1), MAX_RECONNECT_DELAY) + Math.floor(Math.random() * 2000);
                 logger.error({ code, error: lastDisconnect?.error?.message || lastDisconnect?.error, attempt: reconnectAttempts, nextRetryMs: delay }, 'Connection closed, reconnecting...');
-                setTimeout(startBaileys, delay);
+                if (reconnectTimer) clearTimeout(reconnectTimer);
+
+                reconnectTimer = setTimeout(startBaileys, delay);
             } else {
                 logger.error('Logged out. Delete auth_state and restart.');
                 if (fs.existsSync(AUTH_DIR)) fs.rmSync(AUTH_DIR, { recursive: true });
