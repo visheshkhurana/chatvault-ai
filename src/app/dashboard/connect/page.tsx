@@ -14,9 +14,27 @@ export default function ConnectPage() {
     useEffect(() => {
         const checkStatus = async () => {
             try {
-                const res = await fetch(`${BRIDGE_URL}/health`);
-                const data = await res.json();
-                if (data.ok && data.status === 'connected') {
+                let data: any = null;
+
+                // Try direct bridge call first
+                try {
+                    const res = await fetch(`${BRIDGE_URL}/status`);
+                    if (res.ok) data = await res.json();
+                } catch {
+                    // CORS or network failure — fall through to proxy
+                }
+
+                // Fall back to server-side proxy
+                if (!data) {
+                    try {
+                        const proxyRes = await fetch('/api/bridge-status');
+                        if (proxyRes.ok) data = await proxyRes.json();
+                    } catch {
+                        // Server proxy also failed
+                    }
+                }
+
+                if (data && data.connected) {
                     setStatus('connected');
                 } else {
                     setStatus('qr');
