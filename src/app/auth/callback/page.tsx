@@ -25,7 +25,8 @@ export default function AuthCallbackPage() {
         }
 
         const next = queryParams.get('next') || '/dashboard';
-        router.replace(next);
+        // Use full page navigation so the server sees the new auth cookies
+                window.location.href = next;
       } catch (err) {
         console.error('Auth callback error:', err);
         router.replace('/login?error=auth-callback-error');
