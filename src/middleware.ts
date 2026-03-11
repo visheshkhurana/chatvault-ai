@@ -5,6 +5,7 @@ import type { NextRequest } from 'next/server';
 const PUBLIC_ROUTES = [
     '/api/health',
     '/api/auth/callback',
+                '/auth/callback',
     '/api/cron/',
     '/api/bridge/',
     '/api/webhooks/',
