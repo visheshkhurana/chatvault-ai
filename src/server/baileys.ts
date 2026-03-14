@@ -1,7 +1,7 @@
 // Rememora WhatsApp Bridge — Baileys multi-device
 import makeWASocket, {
     DisconnectReason,
-    useMultiFileAuthState,
+    useMultiFileAuthState as multiFileAuthState,
     WASocket,
     proto,
     downloadMediaMessage,
@@ -520,7 +520,7 @@ async function startBaileys() {
         await restoreAuthFromSupabase();
     }
 
-    const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+    const { state, saveCreds } = await multiFileAuthState(AUTH_DIR);
 
     connectionStatus = 'connecting';
     logger.info('Starting Baileys connection...');

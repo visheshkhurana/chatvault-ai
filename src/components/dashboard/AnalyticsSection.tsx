@@ -329,7 +329,7 @@ export default function AnalyticsSection() {
             {heatmapData.length > 0 && (
                 <div className="bg-white rounded-xl border border-surface-200 p-6">
                     <h3 className="font-semibold text-surface-900 mb-1 text-sm">Activity Heatmap</h3>
-                    <p className="text-xs text-surface-400 mb-4">When you're most active (day × hour)</p>
+                    <p className="text-xs text-surface-400 mb-4">When you&apos;re most active (day × hour)</p>
                     <div className="overflow-x-auto">
                         <div className="min-w-[600px]">
                             {/* Hour labels */}

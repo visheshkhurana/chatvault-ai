@@ -82,7 +82,7 @@ export default function WeeklyRecapSection() {
             <div className="bg-gradient-to-br from-brand-50 to-brand-100 rounded-xl border border-brand-200 p-6">
                 <div className="flex items-start justify-between gap-3 mb-4">
                     <div>
-                        <h2 className="text-xl font-bold text-brand-900">This Week's Recap</h2>
+                        <h2 className="text-xl font-bold text-brand-900">This Week&apos;s Recap</h2>
                         <p className="text-sm text-brand-700 mt-1">
                             {new Date(latestRecap.week_start).toLocaleDateString()} - {new Date(latestRecap.week_end).toLocaleDateString()}
                         </p>

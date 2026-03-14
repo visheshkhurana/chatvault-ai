@@ -233,7 +233,7 @@ export default function ReferralSection() {
       {/* Invite by Email */}
       <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
         <h3 className="font-semibold text-gray-900">Invite by Email</h3>
-        <p className="text-sm text-gray-500">Track who you've invited and their status</p>
+        <p className="text-sm text-gray-500">Track who you&apos;ve invited and their status</p>
         <div className="flex gap-2">
           <input
             type="email"

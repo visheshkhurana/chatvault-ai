@@ -654,7 +654,10 @@ export default function MessagesSection() {
                                     )}
                                   </div>
                                   {att.transcript && (
-                                    <p className="mt-1 text-[11px] text-surface-500 line-clamp-2 italic">"{att.transcript.slice(0, 100)}{att.transcript.length > 100 ? '…' : ''}"</p>
+                                    <p className="mt-1 text-[11px] text-surface-500 line-clamp-2 italic">
+                                      &ldquo;{att.transcript.slice(0, 100)}
+                                      {att.transcript.length > 100 ? '…' : ''}&rdquo;
+                                    </p>
                                   )}
                                   {chatName && (
                                     <div className="flex items-center gap-1 mt-1.5 text-[11px] text-surface-400">

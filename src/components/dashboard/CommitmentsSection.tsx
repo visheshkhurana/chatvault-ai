@@ -247,7 +247,7 @@ export default function CommitmentsSection() {
 
                 {Object.values(grouped).every((arr) => arr.length === 0) && (
                     <div className="bg-white rounded-xl border border-surface-200 p-6 sm:p-12 text-center text-surface-500">
-                        No commitments found. Click "Scan for Commitments" to find commitments in your messages.
+                        No commitments found. Click &quot;Scan for Commitments&quot; to find commitments in your messages.
                     </div>
                 )}
             </div>

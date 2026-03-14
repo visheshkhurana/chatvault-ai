@@ -221,7 +221,7 @@ export default function EmotionalInsightsSection() {
                 <h3 className="font-semibold text-purple-900 mb-2 text-sm">Insights</h3>
                 <p className="text-sm text-purple-800 leading-relaxed">
                     Your relationships show a {insights.overall_sentiment} sentiment trend. Focus on the relationships marked
-                    "needs attention" to strengthen your emotional connections.
+                    &quot;needs attention&quot; to strengthen your emotional connections.
                 </p>
             </div>
         </div>
