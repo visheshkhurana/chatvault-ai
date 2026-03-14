@@ -6,6 +6,21 @@ import { MessageSquare, Mail, Lock, Loader2, ArrowLeft, ArrowRight, Sparkles } f
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
+function writeDebugLog(payload: {
+    hypothesisId: string;
+    location: string;
+    message: string;
+    data: Record<string, unknown>;
+    timestamp: number;
+}) {
+    void fetch('/api/debug-log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        keepalive: true,
+    });
+}
+
 export default function LoginPage() {
     const searchParams = useSearchParams();
     const [email, setEmail] = useState('');
@@ -27,14 +42,68 @@ export default function LoginPage() {
         const callbackError = searchParams.get('error');
         const callbackMessage = searchParams.get('message');
 
+        // #region agent log
+        writeDebugLog({
+            hypothesisId: 'A',
+            location: 'src/app/login/page.tsx:40',
+            message: 'Login params effect ran',
+            data: {
+                callbackError,
+                callbackMessage,
+                search: window.location.search,
+            },
+            timestamp: Date.now(),
+        });
+        // #endregion
+
         if (callbackError) {
+            // #region agent log
+            writeDebugLog({
+                hypothesisId: 'B',
+                location: 'src/app/login/page.tsx:52',
+                message: 'Applying callback error to local state',
+                data: {
+                    callbackError,
+                    callbackMessage,
+                },
+                timestamp: Date.now(),
+            });
+            // #endregion
             setError(callbackMessage || 'Authentication failed. Please try again.');
             setMessage('');
         } else if (callbackMessage) {
+            // #region agent log
+            writeDebugLog({
+                hypothesisId: 'B',
+                location: 'src/app/login/page.tsx:64',
+                message: 'Applying callback message to local state',
+                data: {
+                    callbackMessage,
+                },
+                timestamp: Date.now(),
+            });
+            // #endregion
             setMessage(callbackMessage);
             setError('');
         }
     }, [searchParams]);
+
+    useEffect(() => {
+        // #region agent log
+        writeDebugLog({
+            hypothesisId: 'C',
+            location: 'src/app/login/page.tsx:79',
+            message: 'Rendered auth alert state changed',
+            data: {
+                error,
+                message,
+                isForgotPassword,
+                isSignUp,
+            },
+            timestamp: Date.now(),
+        });
+        // #endregion
+    }, [error, message, isForgotPassword, isSignUp]);
 
     async function handleGoogleSignIn() {
         setGoogleLoading(true);
