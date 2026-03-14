@@ -143,7 +143,7 @@ export type TabType =
   | 'search'
   | 'chats'
   | 'attachments'
-    'summaries'
+  | 'summaries'
   | 'contacts'
   | 'sentiment'
   | 'labels'

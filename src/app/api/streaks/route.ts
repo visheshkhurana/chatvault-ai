@@ -1,4 +1,4 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -10,9 +10,31 @@ function apiError(error: string, status: number) {
     return NextResponse.json({ success: false, error }, { status });
 }
 
+function createSupabaseRouteClient() {
+    const cookieStore = cookies();
+    return createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+            cookies: {
+                getAll() {
+                    return cookieStore.getAll();
+                },
+                setAll(cookiesToSet: Array<{ name: string; value: string; options?: any }>) {
+                    try {
+                        cookiesToSet.forEach(({ name, value, options }) => (cookieStore as any).set(name, value, options));
+                    } catch {
+                        // Route handlers may not always allow cookie mutation.
+                    }
+                },
+            },
+        }
+    );
+}
+
 export async function GET(req: NextRequest) {
     try {
-        const supabase = createRouteHandlerClient({ cookies });
+        const supabase = createSupabaseRouteClient();
         const { data: { session } } = await supabase.auth.getSession();
 
     if (!session?.user?.id) {

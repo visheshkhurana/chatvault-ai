@@ -32,9 +32,9 @@ function createSupabaseMiddlewareClient(req: NextRequest, res: NextResponse) {
                         getAll() {
                                     return req.cookies.getAll();
                         },
-                        setAll(cookiesToSet) {
-                                    cookiesToSet.forEach(({ name, value }) => req.cookies.set(name, value));
-                                    cookiesToSet.forEach(({ name, value, options }) =>
+                        setAll(cookiesToSet: Array<{ name: string; value: string; options?: any }>) {
+                                    cookiesToSet.forEach(({ name, value }: { name: string; value: string }) => req.cookies.set(name, value));
+                                    cookiesToSet.forEach(({ name, value, options }: { name: string; value: string; options?: any }) =>
                                                   res.cookies.set(name, value, options)
                                                                    );
                         },

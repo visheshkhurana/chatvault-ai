@@ -46,7 +46,7 @@ export default function KnowledgeBaseSection() {
             });
             const data = await response.json();
             const rawEntries = Array.isArray(data) ? data : (data.entries || []);
-        setEntries(rawEntries.map((e) => ({
+        setEntries(rawEntries.map((e: any) => ({
           ...e,
           is_pinned: e.is_pinned ?? e.pinned ?? false,
           is_archived: e.is_archived ?? e.archived ?? false,
