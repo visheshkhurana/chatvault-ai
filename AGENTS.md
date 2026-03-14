@@ -29,6 +29,8 @@ Placeholder values are sufficient for build/dev startup; real values are needed 
 
 ### Gotchas
 
+- **Secret name swap**: The injected secrets `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are currently swapped (the URL secret contains a JWT, the anon key secret contains the URL). When starting the dev server, you must swap them. Use `source /tmp/supabase_env.sh` before `npm run dev` (generated during setup), or export corrected values inline. The `.env.local` file has them in the correct order, but shell environment variables take precedence in Next.js.
 - The Stripe and OpenAI SDKs are initialized at module scope in several API route files. If `STRIPE_SECRET_KEY` or `OPENAI_API_KEY` is missing/empty, `next build` will fail during page data collection even though `next dev` may start fine (dev server lazy-loads routes).
 - The `src/server/` directory is excluded from `tsconfig.json` (`"exclude": ["node_modules", "src/server"]`), so TypeScript checks do not cover the Baileys bridge code.
 - The landing page (`/`) and static pages (`/terms`, `/privacy`) render without any external services. The `/login` and `/dashboard` routes require Supabase for auth.
+- When killing dev servers, use specific PIDs (from `netstat -tlnp`). Next.js spawns child `next-server` processes that may survive parent process termination, occupying ports as zombies.
