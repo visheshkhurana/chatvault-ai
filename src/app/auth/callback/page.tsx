@@ -24,8 +24,8 @@ export default function AuthCallbackPage() {
           throw new Error('No auth credentials found');
         }
 
-        const next = queryParams.get('next') || '/dashboard';
-        // Use full page navigation so the server sees the new auth cookies
+        let next = queryParams.get('next') || '/dashboard';
+        if (!next.startsWith('/') || next.startsWith('//')) next = '/dashboard';
         window.location.href = next;
       } catch (err: any) {
         console.error('Auth callback error:', err);
