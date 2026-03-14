@@ -4,7 +4,6 @@ import type { NextRequest } from 'next/server';
 
 const PUBLIC_ROUTES = [
     '/api/health',
-    '/api/debug-log',
     '/api/auth/callback',
                 '/auth/callback',
     '/api/cron/',
