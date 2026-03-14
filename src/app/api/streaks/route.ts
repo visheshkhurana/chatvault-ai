@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
 
     // Unexpected fetch error
     if (fetchError) {
-        console.error('[streaks] Fetch error:', fetchError.message);
+        console.error('[streaks] Fetch error:', fetchError);
         return apiError('failed_to_fetch_streak', 500);
     }
 
