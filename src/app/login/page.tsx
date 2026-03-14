@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { MessageSquare, Mail, Lock, Loader2, ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
 export default function LoginPage() {
+    const searchParams = useSearchParams();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isSignUp, setIsSignUp] = useState(false);
@@ -20,6 +22,19 @@ export default function LoginPage() {
 
     const emailError = emailTouched && !email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/) ? 'Please enter a valid email address' : '';
     const passwordError = passwordTouched && !isForgotPassword && password.length > 0 && password.length < 6 ? 'Password must be at least 6 characters' : '';
+
+    useEffect(() => {
+        const callbackError = searchParams.get('error');
+        const callbackMessage = searchParams.get('message');
+
+        if (callbackError) {
+            setError(callbackMessage || 'Authentication failed. Please try again.');
+            setMessage('');
+        } else if (callbackMessage) {
+            setMessage(callbackMessage);
+            setError('');
+        }
+    }, [searchParams]);
 
     async function handleGoogleSignIn() {
         setGoogleLoading(true);
