@@ -34,3 +34,11 @@ Placeholder values are sufficient for build/dev startup; real values are needed 
 - The `src/server/` directory is excluded from `tsconfig.json` (`"exclude": ["node_modules", "src/server"]`), so TypeScript checks do not cover the Baileys bridge code.
 - The landing page (`/`) and static pages (`/terms`, `/privacy`) render without any external services. The `/login` and `/dashboard` routes require Supabase for auth.
 - When killing dev servers, use specific PIDs (from `netstat -tlnp`). Next.js spawns child `next-server` processes that may survive parent process termination, occupying ports as zombies.
+- The CSP in `next.config.js` conditionally adds `'unsafe-eval'` to `script-src` only in dev mode. This is required for Next.js React Fast Refresh (HMR) and the Supabase OAuth flow to work in development. Production builds use the strict CSP without `unsafe-eval`.
+
+### Deployment
+
+- **Production URL**: `https://www.rememora.xyz`
+- **Deploy command**: `vercel deploy --prod --token "$VERCEL_TOKEN"` (requires linking first with `vercel link --project chatvault-ai --yes --token "$VERCEL_TOKEN" --scope vysheshk-8865s-projects`)
+- **Vercel crons**: Defined in `vercel.json` — reminders (every 5 min), daily digest (7am), weekly recap (Sunday 9am), this-day memories (8am).
+- **Baileys bridge**: Deployed separately on Railway via `Dockerfile.baileys` + `railway.toml`.
