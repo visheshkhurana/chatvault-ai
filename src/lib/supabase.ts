@@ -12,7 +12,7 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 // Client-side Supabase client (uses anon key, respects RLS)
 // Uses @supabase/ssr createBrowserClient to store session in cookies
 // so both client and server (middleware) can access auth state.
-export const supabase: SupabaseClient<any> = createBrowserClient(supabaseUrl, supabaseAnonKey, { auth: { flowType: 'implicit' } });
+export const supabase: SupabaseClient<any> = createBrowserClient(supabaseUrl, supabaseAnonKey);
 
 // Server-side Supabase client (uses service role key, bypasses RLS)
 // Only created on server-side where SUPABASE_SERVICE_ROLE_KEY is available
