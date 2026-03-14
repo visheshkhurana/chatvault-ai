@@ -8,7 +8,7 @@ const PUBLIC_ROUTES = [
                 '/auth/callback',
     '/api/cron/',
     '/api/bridge/',
-    '/api/webhooks/',
+    '/api/webhook/',
   ];
 
 const STATIC_EXTENSIONS = ['.ico', '.png', '.jpg', '.svg', '.css', '.js', '.woff', '.woff2'];
