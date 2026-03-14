@@ -43,7 +43,8 @@ let sock: WASocket | null = null;
 let qrCode: string | null = null;
 let connectionStatus: 'disconnected' | 'connecting' | 'connected' = 'disconnected';
 let ownerUserId: string | null = null;
-let ownerJid: string | null = null;let ownerLid: string | null = null;
+let ownerJid: string | null = null;
+let ownerLid: string | null = null;
 
 let reconnectAttempts = 0;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -165,6 +166,7 @@ app.post('/reset', async (req: any, res: any) => {
                     qrCode = null;
                     ownerUserId = null;
                     ownerJid = null;
+                    ownerLid = null;
                     // Clear local auth
                     if (fs.existsSync(AUTH_DIR)) {
                                     fs.rmSync(AUTH_DIR, { recursive: true });
@@ -1061,14 +1063,21 @@ async function handleMeetingBot(query: string, userId: string): Promise<string> 
                 });
                 if (eventId) {
                     synced = true;
-                    // Update stored event with Google event ID and confirm
-                    await supabase
+                    // Update the most recent tentative event with Google event ID
+                    const { data: tentative } = await supabase
                         .from('calendar_events')
-                        .update({ google_event_id: eventId, status: 'confirmed' })
+                        .select('id')
                         .eq('user_id', userId)
                         .eq('status', 'tentative')
                         .order('created_at', { ascending: false })
-                        .limit(1);
+                        .limit(1)
+                        .single();
+                    if (tentative?.id) {
+                        await supabase
+                            .from('calendar_events')
+                            .update({ google_event_id: eventId, status: 'confirmed' })
+                            .eq('id', tentative.id);
+                    }
                 }
             }
         } catch (err) {
@@ -1200,10 +1209,11 @@ async function handleCalendarBot(query: string, userId: string): Promise<string>
 
         // Try Google Calendar too
         let googleEvents: any[] = [];
+        let googleConnected = false;
         try {
             const { getUpcomingEvents, isCalendarConnected } = await import('../lib/google-calendar');
-            const connected = await isCalendarConnected(supabase, userId);
-            if (connected) {
+            googleConnected = await isCalendarConnected(supabase, userId);
+            if (googleConnected) {
                 googleEvents = await getUpcomingEvents(supabase, userId, 10);
             }
         } catch (err) {
@@ -1241,8 +1251,7 @@ async function handleCalendarBot(query: string, userId: string): Promise<string>
         allEvents.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
         if (allEvents.length === 0) {
-            const hasGoogle = googleEvents !== undefined;
-            return hasGoogle
+            return googleConnected
                 ? "📅 No upcoming events on your calendar. You're all clear!"
                 : "📅 No upcoming events found.\n\n💡 Connect Google Calendar in settings to see all your events here.";
         }
@@ -1264,7 +1273,7 @@ async function handleCalendarBot(query: string, userId: string): Promise<string>
             response += '\n\n';
         });
 
-        if (googleEvents.length === 0) {
+        if (!googleConnected) {
             response += '💡 Connect Google Calendar for complete event sync.';
         }
 
@@ -1421,11 +1430,15 @@ async function handleSearchBot(query: string, userId: string, intent: BotIntent)
 
     let searchResults: any[] = [];
     if (embedding) {
-        const { data } = await supabase.rpc('match_embeddings', {
-            query_embedding: JSON.stringify(embedding),
-            match_count: 8,
+        const { data } = await supabase.rpc('search_embeddings', {
+            p_query_embedding: JSON.stringify(embedding),
+            p_match_count: 8,
             p_user_id: userId,
-        }).select('*');
+            p_match_threshold: 0.7,
+            p_chat_id: null,
+            p_date_from: null,
+            p_date_to: null,
+        });
         searchResults = data || [];
     }
 
