@@ -27,12 +27,20 @@ export const GET = withAuth(async (req: NextRequest, { user }) => {
         .select('id, chat_id, contact_id, zone_type, created_at, chats(title), contacts(display_name)')
         .eq('user_id', user.id);
 
-    // Fetch notification preferences
+    // Fetch notification preferences (table references auth.users(id))
     const { data: notifications } = await supabaseAdmin
         .from('notification_preferences')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', user.authId)
         .single();
+
+    const notifDefaults = {
+        daily_summary: true,
+        weekly_summary: true,
+        commitment_alerts: true,
+        summary_time: '09:00',
+        summary_timezone: userData?.timezone || 'UTC',
+    };
 
     return apiSuccess({
         profile: {
@@ -44,13 +52,15 @@ export const GET = withAuth(async (req: NextRequest, { user }) => {
         },
         settings: userData?.settings || {},
         privacyZones: privacyZones || [],
-        notifications: notifications || {
-            dailySummary: true,
-            weeklySummary: true,
-            commitmentAlerts: true,
-            summaryTime: '09:00',
-            summaryTimezone: userData?.timezone || 'UTC',
-        },
+        notifications: notifications
+            ? {
+                daily_summary: notifications.daily_summary,
+                weekly_summary: notifications.weekly_summary,
+                commitment_alerts: notifications.commitment_alerts,
+                summary_time: notifications.summary_time,
+                summary_timezone: notifications.summary_timezone,
+              }
+            : notifDefaults,
     });
 });
 
@@ -119,13 +129,19 @@ export const POST = withAuth(async (req: NextRequest, { user }) => {
 
     // Update notification preferences
     if (notifications) {
+        const notifRow: Record<string, any> = {
+            user_id: user.authId,
+            updated_at: new Date().toISOString(),
+        };
+        if (notifications.dailySummary !== undefined) notifRow.daily_summary = notifications.dailySummary;
+        if (notifications.weeklySummary !== undefined) notifRow.weekly_summary = notifications.weeklySummary;
+        if (notifications.commitmentAlerts !== undefined) notifRow.commitment_alerts = notifications.commitmentAlerts;
+        if (notifications.summaryTime !== undefined) notifRow.summary_time = notifications.summaryTime;
+        if (notifications.summaryTimezone !== undefined) notifRow.summary_timezone = notifications.summaryTimezone;
+
         const { error } = await supabaseAdmin
             .from('notification_preferences')
-            .upsert({
-                user_id: user.id,
-                ...notifications,
-                updated_at: new Date().toISOString(),
-            }, { onConflict: 'user_id' });
+            .upsert(notifRow, { onConflict: 'user_id' });
         if (error) {
             console.error('[Settings] Error updating notifications:', error);
         }

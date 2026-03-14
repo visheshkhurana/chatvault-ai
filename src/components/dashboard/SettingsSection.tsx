@@ -165,9 +165,9 @@ export default function SettingsSection() {
         display_name: data.profile?.displayName || userName || userEmail.split('@')[0] || '',
         email: data.profile?.email || userEmail,
         timezone: data.profile?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
-        daily_summary: data.notifications?.dailySummary ?? false,
-        weekly_summary: data.notifications?.weeklySummary ?? false,
-        commitment_alerts: data.notifications?.commitmentAlerts ?? true,
+        daily_summary: data.notifications?.daily_summary ?? data.notifications?.dailySummary ?? false,
+        weekly_summary: data.notifications?.weekly_summary ?? data.notifications?.weeklySummary ?? false,
+        commitment_alerts: data.notifications?.commitment_alerts ?? data.notifications?.commitmentAlerts ?? true,
         privacy_zones: data.privacyZones || [],
         data_retention_days: data.profile?.dataRetentionDays || 365,
       });
@@ -193,23 +193,15 @@ export default function SettingsSection() {
           timezone: updates.timezone,
           dataRetentionDays: updates.data_retention_days,
           notifications: {
-            daily_summary: updates.daily_summary,
-            weekly_summary: updates.weekly_summary,
-            commitment_alerts: updates.commitment_alerts,
+            dailySummary: updates.daily_summary,
+            weeklySummary: updates.weekly_summary,
+            commitmentAlerts: updates.commitment_alerts,
           },
         }),
       });
       const data = await response.json();
-      setSettings({
-        display_name: data.profile?.displayName || '',
-        email: data.profile?.email || '',
-        timezone: data.profile?.timezone || 'UTC',
-        daily_summary: data.notifications?.dailySummary ?? false,
-        weekly_summary: data.notifications?.weeklySummary ?? false,
-        commitment_alerts: data.notifications?.commitmentAlerts ?? true,
-        privacy_zones: data.privacyZones || [],
-        data_retention_days: data.profile?.dataRetentionDays || 365,
-      });
+      if (!data.success) throw new Error(data.error || 'Save failed');
+      setSettings({ ...settings, ...updates });
     } catch (err) {
       console.error('Failed to save settings:', err);
     }
