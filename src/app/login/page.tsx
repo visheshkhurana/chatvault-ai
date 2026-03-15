@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { MessageSquare, Mail, Lock, Loader2, ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
 import Link from 'next/link';
@@ -21,6 +21,12 @@ export default function LoginPage() {
     const emailError = emailTouched && !email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/) ? 'Please enter a valid email address' : '';
     const passwordError = passwordTouched && !isForgotPassword && password.length > 0 && password.length < 6 ? 'Password must be at least 6 characters' : '';
 
+
+        // Clear any stale auth session when the login page loads
+        // This prevents the redirect loop caused by expired cookies
+        useEffect(() => {
+                    supabase.auth.signOut();
+        }, []);
     async function handleGoogleSignIn() {
         setGoogleLoading(true);
         setError('');
