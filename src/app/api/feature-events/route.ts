@@ -1,4 +1,4 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -10,10 +10,31 @@ function apiError(message: string, status = 400) {
     return NextResponse.json({ success: false, error: message }, { status });
 }
 
+function createSupabaseRouteClient() {
+    const cookieStore = cookies();
+    return createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+            cookies: {
+                getAll() {
+                    return cookieStore.getAll();
+                },
+                setAll(cookiesToSet) {
+                    cookiesToSet.forEach(({ name, value, options }) => {
+                        // eslint-disable-next-line no-empty
+                        try { cookieStore.set(name, value, options); } catch {}
+                    });
+                },
+            },
+        }
+    );
+}
+
 // POST /api/feature-events — log a feature usage event
 export async function POST(request: NextRequest) {
     try {
-          const supabase = createRouteHandlerClient({ cookies });
+          const supabase = createSupabaseRouteClient();
           const { data: { user } } = await supabase.auth.getUser();
           if (!user) return apiError('Unauthorized', 401);
 
@@ -42,7 +63,7 @@ export async function POST(request: NextRequest) {
 // GET /api/feature-events — get feature usage stats for current user
 export async function GET(request: NextRequest) {
     try {
-          const supabase = createRouteHandlerClient({ cookies });
+          const supabase = createSupabaseRouteClient();
           const { data: { user } } = await supabase.auth.getUser();
           if (!user) return apiError('Unauthorized', 401);
 
