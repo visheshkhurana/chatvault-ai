@@ -57,14 +57,19 @@ export default async function AuthCallbackPage({
         }
     );
 
+    let exchangeError: string | null = null;
     try {
         const { error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) {
-            loginErrorRedirect(error.message);
+            exchangeError = error.message;
         }
-        redirect(nextPath);
     } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        loginErrorRedirect(message);
+        exchangeError = err instanceof Error ? err.message : String(err);
     }
+
+    if (exchangeError) {
+        loginErrorRedirect(exchangeError);
+    }
+
+    redirect(nextPath);
 }
