@@ -40,8 +40,8 @@ function createSupabaseRouteClient(request: NextRequest) {
 
 // POST /api/feature-events — log a feature usage event
 export async function POST(request: NextRequest) {
+    const { supabase, apiSuccess, apiError } = createSupabaseRouteClient(request);
     try {
-          const { supabase, apiSuccess, apiError } = createSupabaseRouteClient(request);
           const { data: { user } } = await supabase.auth.getUser();
           if (!user) return apiError('Unauthorized', 401);
 
@@ -69,8 +69,8 @@ export async function POST(request: NextRequest) {
 
 // GET /api/feature-events — get feature usage stats for current user
 export async function GET(request: NextRequest) {
+    const { supabase, apiSuccess, apiError } = createSupabaseRouteClient(request);
     try {
-          const { supabase, apiSuccess, apiError } = createSupabaseRouteClient(request);
           const { data: { user } } = await supabase.auth.getUser();
           if (!user) return apiError('Unauthorized', 401);
 
