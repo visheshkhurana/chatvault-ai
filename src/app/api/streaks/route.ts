@@ -1,18 +1,46 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createServerClient } from '@supabase/ssr';
 import { NextRequest, NextResponse } from 'next/server';
 
-function apiSuccess(data: unknown, status = 200) {
-    return NextResponse.json({ success: true, data }, { status });
-}
+function createSupabaseRouteClient(request: NextRequest) {
+    const cookiesToSet: Array<{
+        name: string;
+        value: string;
+        options: any;
+    }> = [];
 
-function apiError(error: string, status: number) {
-    return NextResponse.json({ success: false, error }, { status });
+    const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+            cookies: {
+                getAll() {
+                    return request.cookies.getAll();
+                },
+                setAll(newCookies) {
+                    cookiesToSet.push(...newCookies);
+                },
+            },
+        }
+    );
+
+    const applyCookies = (response: NextResponse) => {
+        cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set(name, value, options);
+        });
+        return response;
+    };
+
+    return { supabase, applyCookies };
 }
 
 export async function GET(req: NextRequest) {
     try {
-        const supabase = createRouteHandlerClient({ cookies });
+        const { supabase, applyCookies } = createSupabaseRouteClient(req);
+        const apiSuccess = (data: unknown, status = 200) =>
+            applyCookies(NextResponse.json({ success: true, data }, { status }));
+        const apiError = (error: string, status: number) =>
+            applyCookies(NextResponse.json({ success: false, error }, { status }));
+
         const { data: { session } } = await supabase.auth.getSession();
 
     if (!session?.user?.id) {
