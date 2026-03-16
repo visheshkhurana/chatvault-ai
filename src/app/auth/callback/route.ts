@@ -13,26 +13,6 @@ function loginErrorRedirect(request: NextRequest, message: string): NextResponse
     return NextResponse.redirect(loginUrl);
 }
 
-function createSupabaseRouteClient(request: NextRequest, response: NextResponse) {
-    return createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-            cookies: {
-                get(name) {
-                    return request.cookies.get(name)?.value;
-                },
-                set(name, value, options) {
-                    response.cookies.set({ name, value, ...options });
-                },
-                remove(name, options) {
-                    response.cookies.set({ name, value: '', ...options, maxAge: 0 });
-                },
-            },
-        }
-    );
-}
-
 export async function GET(request: NextRequest) {
     const callbackError =
         request.nextUrl.searchParams.get('error_description') ||
@@ -49,8 +29,28 @@ export async function GET(request: NextRequest) {
     }
 
     const nextPath = getSafeNextPath(request.nextUrl.searchParams.get('next'));
-    const successRedirect = NextResponse.redirect(new URL(nextPath, request.url));
-    const supabase = createSupabaseRouteClient(request, successRedirect);
+    const redirectUrl = new URL(nextPath, request.url);
+
+    // Create the redirect response FIRST so auth cookies
+    // are attached to this exact response object.
+    const response = NextResponse.redirect(redirectUrl);
+
+    const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+            cookies: {
+                getAll() {
+                    return request.cookies.getAll();
+                },
+                setAll(cookiesToSet) {
+                    cookiesToSet.forEach(({ name, value, options }) =>
+                        response.cookies.set(name, value, options)
+                    );
+                },
+            },
+        }
+    );
 
     try {
         const { error } = await supabase.auth.exchangeCodeForSession(code);
@@ -61,5 +61,5 @@ export async function GET(request: NextRequest) {
         const message = err instanceof Error ? err.message : String(err);
         return loginErrorRedirect(request, message);
     }
-    return successRedirect;
+    return response;
 }
