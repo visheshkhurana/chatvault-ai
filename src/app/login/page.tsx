@@ -1,11 +1,14 @@
 'use client';
 
-import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { getBrowserSupabaseClient } from '@/lib/supabase-browser';
 import { MessageSquare, Mail, Lock, Loader2, ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 
 export default function LoginPage() {
+    const searchParams = useSearchParams();
+    const supabase = getBrowserSupabaseClient();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isSignUp, setIsSignUp] = useState(false);
@@ -20,6 +23,18 @@ export default function LoginPage() {
 
     const emailError = emailTouched && !email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/) ? 'Please enter a valid email address' : '';
     const passwordError = passwordTouched && !isForgotPassword && password.length > 0 && password.length < 6 ? 'Password must be at least 6 characters' : '';
+
+    useEffect(() => {
+        const callbackMessage = searchParams.get('message');
+        const callbackError = searchParams.get('error');
+        if (callbackMessage) {
+            setError(callbackMessage);
+            return;
+        }
+        if (callbackError) {
+            setError(`Authentication failed (${callbackError})`);
+        }
+    }, [searchParams]);
 
     async function handleGoogleSignIn() {
         setGoogleLoading(true);
