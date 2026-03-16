@@ -1,13 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useState } from 'react';
 import { getBrowserSupabaseClient } from '@/lib/supabase-browser';
 import { MessageSquare, Mail, Lock, Loader2, ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 
 export default function LoginPage() {
-    const searchParams = useSearchParams();
     const supabase = getBrowserSupabaseClient();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -15,6 +13,14 @@ export default function LoginPage() {
     const [isForgotPassword, setIsForgotPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [callbackErrorMessage, setCallbackErrorMessage] = useState(() => {
+        if (typeof window === 'undefined') return '';
+        const urlParams = new URLSearchParams(window.location.search);
+        const callbackMessage = urlParams.get('message');
+        if (callbackMessage) return callbackMessage;
+        const callbackError = urlParams.get('error');
+        return callbackError ? `Authentication failed (${callbackError})` : '';
+    });
     const [message, setMessage] = useState('');
     const [emailTouched, setEmailTouched] = useState(false);
     const [passwordTouched, setPasswordTouched] = useState(false);
@@ -24,21 +30,10 @@ export default function LoginPage() {
     const emailError = emailTouched && !email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/) ? 'Please enter a valid email address' : '';
     const passwordError = passwordTouched && !isForgotPassword && password.length > 0 && password.length < 6 ? 'Password must be at least 6 characters' : '';
 
-    useEffect(() => {
-        const callbackMessage = searchParams.get('message');
-        const callbackError = searchParams.get('error');
-        if (callbackMessage) {
-            setError(callbackMessage);
-            return;
-        }
-        if (callbackError) {
-            setError(`Authentication failed (${callbackError})`);
-        }
-    }, [searchParams]);
-
     async function handleGoogleSignIn() {
         setGoogleLoading(true);
         setError('');
+        setCallbackErrorMessage('');
         try {
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
@@ -57,6 +52,7 @@ export default function LoginPage() {
         e.preventDefault();
         setLoading(true);
         setError('');
+        setCallbackErrorMessage('');
         setMessage('');
         try {
             const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -74,6 +70,7 @@ export default function LoginPage() {
         e.preventDefault();
         setLoading(true);
         setError('');
+        setCallbackErrorMessage('');
         setMessage('');
 
         try {
@@ -245,9 +242,9 @@ export default function LoginPage() {
                             )}
 
                             {/* Error / Success messages */}
-                            {error && (
+                            {(error || callbackErrorMessage) && (
                                 <div className="p-3.5 bg-red-50 border border-red-100 text-red-700 rounded-xl text-sm">
-                                    {error}
+                                    {error || callbackErrorMessage}
                                 </div>
                             )}
                             {message && (
@@ -277,14 +274,14 @@ export default function LoginPage() {
                         <div className="mt-6 pt-6 border-t border-surface-100 text-center space-y-3">
                             {!isForgotPassword && !isSignUp && (
                                 <button
-                                    onClick={() => { setIsForgotPassword(true); setError(''); setMessage(''); }}
+                                    onClick={() => { setIsForgotPassword(true); setError(''); setCallbackErrorMessage(''); setMessage(''); }}
                                     className="text-sm text-surface-500 hover:text-surface-700 transition-colors block w-full"
                                 >
                                     Forgot your password?
                                 </button>
                             )}
                             <button
-                                onClick={() => { setIsSignUp(!isSignUp); setIsForgotPassword(false); setError(''); setMessage(''); }}
+                                onClick={() => { setIsSignUp(!isSignUp); setIsForgotPassword(false); setError(''); setCallbackErrorMessage(''); setMessage(''); }}
                                 className="text-sm font-medium text-brand-600 hover:text-brand-700 transition-colors"
                             >
                                 {isForgotPassword
