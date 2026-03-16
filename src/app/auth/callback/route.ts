@@ -1,5 +1,4 @@
 import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
 function getSafeNextPath(nextPath?: string | null): string {
@@ -29,20 +28,25 @@ export async function GET(request: NextRequest) {
         return loginErrorRedirect(request, 'No auth code found in callback URL.');
     }
 
-    const cookieStore = cookies();
+    const nextPath = getSafeNextPath(request.nextUrl.searchParams.get('next'));
+    const redirectUrl = new URL(nextPath, request.url);
+
+    // Create the redirect response FIRST so auth cookies
+    // are attached to this exact response object.
+    const response = NextResponse.redirect(redirectUrl);
+
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
             cookies: {
-                get(name) {
-                    return cookieStore.get(name)?.value;
+                getAll() {
+                    return request.cookies.getAll();
                 },
-                set(name, value, options) {
-                    cookieStore.set({ name, value, ...options });
-                },
-                remove(name, options) {
-                    cookieStore.set({ name, value: '', ...options, maxAge: 0 });
+                setAll(cookiesToSet) {
+                    cookiesToSet.forEach(({ name, value, options }) =>
+                        response.cookies.set(name, value, options)
+                    );
                 },
             },
         }
@@ -57,7 +61,5 @@ export async function GET(request: NextRequest) {
         const message = err instanceof Error ? err.message : String(err);
         return loginErrorRedirect(request, message);
     }
-
-    const nextPath = getSafeNextPath(request.nextUrl.searchParams.get('next'));
-    return NextResponse.redirect(new URL(nextPath, request.url));
+    return response;
 }
