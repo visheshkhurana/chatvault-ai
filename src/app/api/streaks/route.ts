@@ -34,13 +34,13 @@ function createSupabaseRouteClient(request: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-    try {
-        const { supabase, applyCookies } = createSupabaseRouteClient(req);
-        const apiSuccess = (data: unknown, status = 200) =>
-            applyCookies(NextResponse.json({ success: true, data }, { status }));
-        const apiError = (error: string, status: number) =>
-            applyCookies(NextResponse.json({ success: false, error }, { status }));
+    const { supabase, applyCookies } = createSupabaseRouteClient(req);
+    const apiSuccess = (data: unknown, status = 200) =>
+        applyCookies(NextResponse.json({ success: true, data }, { status }));
+    const apiError = (error: string, status: number) =>
+        applyCookies(NextResponse.json({ success: false, error }, { status }));
 
+    try {
         const { data: { session } } = await supabase.auth.getSession();
 
     if (!session?.user?.id) {
