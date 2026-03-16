@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { getBrowserSupabaseClient } from '@/lib/supabase-browser';
 
 type FeedbackStep = 'sean-ellis' | 'nps' | 'open-ended' | 'done';
 
@@ -18,7 +18,7 @@ export default function FeedbackPrompt({ userId, daysActive = 0, onDismiss }: Fe
     const [npsScore, setNpsScore] = useState<number | null>(null);
     const [openText, setOpenText] = useState('');
     const [submitting, setSubmitting] = useState(false);
-    const supabase = createClientComponentClient();
+    const supabase = getBrowserSupabaseClient();
 
   useEffect(() => {
         if (daysActive >= 3) {
