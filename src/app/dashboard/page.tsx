@@ -37,8 +37,6 @@ interface BridgeStatus {
   name?: string;
 }
 
-const BRIDGE_URL = process.env.NEXT_PUBLIC_BRIDGE_URL || 'https://chatvault-ai-production.up.railway.app';
-
 const TAB_TITLES: Record<string, { title: string; subtitle: string }> = {
   home: { title: 'Home', subtitle: 'Chat with Rememora' },
   messages: { title: 'Messages', subtitle: 'Chats, files & search' },
@@ -163,23 +161,10 @@ export default function DashboardPage() {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
 
-        // Try direct bridge call first; fall back to server-side proxy on failure
-        let data: any = null;
-        try {
-          const res = await fetch(BRIDGE_URL + '/status');
-          if (res.ok) data = await res.json();
-        } catch {
-          // CORS or network failure — use server-side proxy (no CORS)
-        }
-
-        if (!data) {
-          try {
-            const proxyRes = await fetch('/api/bridge-status');
-            if (proxyRes.ok) data = await proxyRes.json();
-          } catch {
-            // Server proxy also failed
-          }
-        }
+        const proxyRes = await fetch('/api/bridge/status', {
+          cache: 'no-store',
+        });
+        const data = proxyRes.ok ? await proxyRes.json() : null;
 
         if (data) {
           setBridgeStatus({ connected: data.connected, phone: data.phone, name: data.name });

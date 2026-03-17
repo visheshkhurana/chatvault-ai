@@ -1,14 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import {
   Users, Bell, Shield, Download, Loader2, ToggleRight, ToggleLeft,
-  X, Plus, Wifi, WifiOff, RefreshCw, Smartphone, QrCode, CheckCircle2, LogOut,
+  X, Plus, Wifi, WifiOff, RefreshCw, Smartphone, QrCode, CheckCircle2, AlertCircle,
   Calendar, Link2, Unlink
 } from 'lucide-react';
-
-const BRIDGE_URL = process.env.NEXT_PUBLIC_BRIDGE_URL || 'https://chatvault-ai-production.up.railway.app';
 
 interface SettingsData {
   display_name: string;
@@ -37,72 +35,43 @@ export default function SettingsSection() {
   const [waStatus, setWaStatus] = useState<WhatsAppStatus>({ connected: false, status: 'disconnected' });
   const [waLoading, setWaLoading] = useState(true);
   const [showQR, setShowQR] = useState(false);
+  const [waQrCode, setWaQrCode] = useState<string | null>(null);
+  const [waQrLoading, setWaQrLoading] = useState(false);
+  const [waQrError, setWaQrError] = useState<string | null>(null);
   const [googleCalConnected, setGoogleCalConnected] = useState(false);
   const [googleCalLoading, setGoogleCalLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadSettings();
-    checkWhatsApp();
-    checkGoogleCalendar();
-    const interval = setInterval(checkWhatsApp, 10000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Check URL params for Google auth callback status
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('google') === 'connected') {
-      setGoogleCalConnected(true);
-      setGoogleCalLoading(false);
-      // Clean up the URL
-      window.history.replaceState({}, '', window.location.pathname);
-    }
-  }, []);
-
-  async function checkWhatsApp() {
+  const checkWhatsApp = useCallback(async () => {
     try {
-      let data: any = null;
+      const res = await fetch('/api/bridge/status', {
+        cache: 'no-store',
+      });
+      const data = await res.json();
 
-      // Try direct bridge call first
-      try {
-        const res = await fetch(BRIDGE_URL + '/status');
-        if (res.ok) data = await res.json();
-      } catch {
-        // CORS or network failure — fall through to proxy
+      if (!res.ok) {
+        throw new Error(data.error || 'Bridge unreachable');
       }
 
-      // Fall back to server-side proxy (no CORS issues)
-      if (!data) {
-        try {
-          const proxyRes = await fetch('/api/bridge-status');
-          if (proxyRes.ok) data = await proxyRes.json();
-        } catch {
-          // Server proxy also failed
-        }
+      setWaStatus({
+        connected: data.connected || data.status === 'connected',
+        status: data.status || 'disconnected',
+        phone: data.phone,
+        name: data.name,
+        sync: data.sync,
+      });
+      if (data.connected || data.status === 'connected') {
+        setShowQR(false);
+        setWaQrCode(null);
+        setWaQrError(null);
       }
-
-      if (data) {
-        setWaStatus({
-          connected: data.connected || data.status === 'connected',
-          status: data.status || 'disconnected',
-          phone: data.phone,
-          name: data.name,
-          sync: data.sync,
-        });
-        if (data.connected || data.status === 'connected') {
-          setShowQR(false);
-        }
-      } else {
-        setWaStatus({ connected: false, status: 'error' });
-      }
-    } catch (err) {
+    } catch {
       setWaStatus({ connected: false, status: 'error' });
     }
     setWaLoading(false);
-  }
+  }, []);
 
-  async function checkGoogleCalendar() {
+  const checkGoogleCalendar = useCallback(async () => {
     setGoogleCalLoading(true);
     try {
       const session = await supabase.auth.getSession();
@@ -120,7 +89,7 @@ export default function SettingsSection() {
       console.error('Google Calendar check failed:', err);
     }
     setGoogleCalLoading(false);
-  }
+  }, []);
 
   async function connectGoogleCalendar() {
     if (!userId) {
@@ -151,7 +120,7 @@ export default function SettingsSection() {
     }
   }
 
-  async function loadSettings() {
+  const loadSettings = useCallback(async () => {
     setLoading(true);
     try {
       const session = await supabase.auth.getSession();
@@ -175,7 +144,69 @@ export default function SettingsSection() {
       console.error('Failed to load settings:', err);
     }
     setLoading(false);
-  }
+  }, []);
+
+  const loadWhatsAppQr = useCallback(async () => {
+    setWaQrLoading(true);
+    try {
+      const res = await fetch('/api/bridge/qr', {
+        cache: 'no-store',
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Unable to load WhatsApp QR code');
+      }
+
+      if (data.state === 'connected') {
+        setWaStatus((current) => ({ ...current, connected: true, status: 'connected' }));
+        setShowQR(false);
+        setWaQrCode(null);
+        setWaQrError(null);
+        return;
+      }
+
+      if (data.state === 'qr' && data.qrCode) {
+        setWaQrCode(data.qrCode);
+      } else {
+        setWaQrCode(null);
+      }
+      setWaQrError(null);
+    } catch (err) {
+      setWaQrError(err instanceof Error ? err.message : 'Unable to load WhatsApp QR code');
+    } finally {
+      setWaQrLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSettings();
+    checkWhatsApp();
+    checkGoogleCalendar();
+    const interval = setInterval(checkWhatsApp, 10000);
+    return () => clearInterval(interval);
+  }, [checkGoogleCalendar, checkWhatsApp, loadSettings]);
+
+  useEffect(() => {
+    if (!showQR || waStatus.connected) {
+      return;
+    }
+
+    loadWhatsAppQr();
+    const interval = setInterval(loadWhatsAppQr, 5000);
+    return () => clearInterval(interval);
+  }, [loadWhatsAppQr, showQR, waStatus.connected]);
+
+  // Check URL params for Google auth callback status
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('google') === 'connected') {
+      setGoogleCalConnected(true);
+      setGoogleCalLoading(false);
+      // Clean up the URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   async function saveSettings(updates: Partial<SettingsData>) {
     if (!settings) return;
@@ -313,7 +344,11 @@ export default function SettingsSection() {
 
               {!showQR ? (
                 <button
-                  onClick={() => setShowQR(true)}
+                  onClick={() => {
+                    setShowQR(true);
+                    setWaQrCode(null);
+                    setWaQrError(null);
+                  }}
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
                 >
                   <QrCode className="w-5 h-5" />
@@ -326,20 +361,49 @@ export default function SettingsSection() {
                       Open WhatsApp {'>'} Linked Devices {'>'} Link a Device
                     </p>
                     <div className="flex justify-center">
-                      <iframe
-                        src={BRIDGE_URL + '/qr?embed=1'}
-                        className="w-full max-w-[280px] aspect-square rounded-lg border-2 border-brand-200"
-                        title="WhatsApp QR Code"
-                      />
+                      {waQrError ? (
+                        <div className="w-full max-w-[280px] rounded-lg border border-red-200 bg-red-50 p-4 text-center">
+                          <AlertCircle className="w-6 h-6 text-red-500 mx-auto mb-2" />
+                          <p className="text-sm font-medium text-red-700">QR code unavailable</p>
+                          <p className="text-xs text-red-600 mt-1">{waQrError}</p>
+                        </div>
+                      ) : waQrCode ? (
+                        <img
+                          src={waQrCode}
+                          className="w-full max-w-[280px] aspect-square rounded-lg border-2 border-brand-200"
+                          alt="WhatsApp QR Code"
+                        />
+                      ) : (
+                        <div className="w-full max-w-[280px] aspect-square rounded-lg border-2 border-brand-200 bg-white flex items-center justify-center">
+                          <div className="text-center">
+                            <Loader2 className="w-6 h-6 text-brand-600 animate-spin mx-auto mb-2" />
+                            <p className="text-sm text-surface-500">Preparing QR code...</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <p className="text-xs text-surface-400 mt-3">QR code refreshes automatically</p>
+                    <p className="text-xs text-surface-400 mt-3">
+                      {waQrLoading ? 'Refreshing QR code...' : 'QR code refreshes automatically every 5 seconds'}
+                    </p>
                   </div>
-                  <button
-                    onClick={() => setShowQR(false)}
-                    className="w-full px-4 py-2 text-sm text-surface-600 hover:text-surface-800 transition-colors"
-                  >
-                    Cancel
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={loadWhatsAppQr}
+                      className="flex-1 px-4 py-2 text-sm text-brand-600 hover:text-brand-700 transition-colors"
+                    >
+                      Refresh QR
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowQR(false);
+                        setWaQrCode(null);
+                        setWaQrError(null);
+                      }}
+                      className="flex-1 px-4 py-2 text-sm text-surface-600 hover:text-surface-800 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

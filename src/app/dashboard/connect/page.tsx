@@ -1,56 +1,89 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { MessageSquare, Smartphone, CheckCircle2, Loader2, ArrowRight, RefreshCw, Wifi } from 'lucide-react';
-
-const BRIDGE_URL = process.env.NEXT_PUBLIC_BRIDGE_URL || 'https://chatvault-ai-production.up.railway.app';
+import { AlertCircle, MessageSquare, Smartphone, CheckCircle2, Loader2, ArrowRight, RefreshCw, Wifi } from 'lucide-react';
 
 export default function ConnectPage() {
     const router = useRouter();
-    const [status, setStatus] = useState<'loading' | 'qr' | 'connected'>('loading');
-    const [qrKey, setQrKey] = useState(0);
+    const [status, setStatus] = useState<'loading' | 'qr' | 'connected' | 'error'>('loading');
+    const [qrCode, setQrCode] = useState<string | null>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const qrCodeRef = useRef<string | null>(null);
 
     useEffect(() => {
-        const checkStatus = async () => {
-            try {
-                let data: any = null;
+        qrCodeRef.current = qrCode;
+    }, [qrCode]);
 
-                // Try direct bridge call first
-                try {
-                    const res = await fetch(`${BRIDGE_URL}/status`);
-                    if (res.ok) data = await res.json();
-                } catch {
-                    // CORS or network failure — fall through to proxy
+    useEffect(() => {
+        let isMounted = true;
+
+        const refreshBridge = async () => {
+            try {
+                const statusRes = await fetch('/api/bridge/status', {
+                    cache: 'no-store',
+                });
+                const statusData = await statusRes.json();
+
+                if (!statusRes.ok) {
+                    throw new Error(statusData.error || 'Unable to reach WhatsApp bridge');
                 }
 
-                // Fall back to server-side proxy
-                if (!data) {
-                    try {
-                        const proxyRes = await fetch('/api/bridge-status');
-                        if (proxyRes.ok) data = await proxyRes.json();
-                    } catch {
-                        // Server proxy also failed
+                if (!isMounted) {
+                    return;
+                }
+
+                if (statusData.connected) {
+                    setStatus('connected');
+                    setQrCode(null);
+                    setErrorMessage(null);
+                    return;
+                }
+
+                const qrRes = await fetch('/api/bridge/qr', {
+                    cache: 'no-store',
+                });
+                const qrData = await qrRes.json();
+
+                if (!qrRes.ok) {
+                    throw new Error(qrData.error || 'Unable to load WhatsApp QR code');
+                }
+
+                if (!isMounted) {
+                    return;
+                }
+
+                if (qrData.state === 'connected') {
+                    setStatus('connected');
+                    setQrCode(null);
+                } else if (qrData.state === 'qr' && qrData.qrCode) {
+                    setStatus('qr');
+                    setQrCode(qrData.qrCode);
+                } else {
+                    setStatus(qrCodeRef.current ? 'qr' : 'loading');
+                    if (!qrCodeRef.current) {
+                        setQrCode(null);
                     }
                 }
-
-                if (data && data.connected) {
-                    setStatus('connected');
-                } else {
-                    setStatus('qr');
+                setErrorMessage(null);
+            } catch (err) {
+                if (!isMounted) {
+                    return;
                 }
-            } catch {
-                setStatus('qr');
+                setStatus('error');
+                setErrorMessage(err instanceof Error ? err.message : 'Unable to load WhatsApp QR code');
             }
         };
 
-        checkStatus();
+        refreshBridge();
         const interval = setInterval(() => {
-            checkStatus();
-            setQrKey((k: number) => k + 1);
-        }, 15000);
+            refreshBridge();
+        }, 5000);
 
-        return () => clearInterval(interval);
+        return () => {
+            isMounted = false;
+            clearInterval(interval);
+        };
     }, []);
 
     if (status === 'connected') {
@@ -127,17 +160,31 @@ export default function ConnectPage() {
                                 <div className="w-full aspect-square max-w-[280px] mx-auto flex items-center justify-center bg-surface-50 rounded-2xl border border-surface-200">
                                     <div className="text-center">
                                         <Loader2 className="w-8 h-8 text-brand-500 animate-spin mx-auto mb-2" />
-                                        <p className="text-sm text-surface-400">Loading QR code...</p>
+                                        <p className="text-sm text-surface-400">Preparing QR code...</p>
                                     </div>
+                                </div>
+                            ) : status === 'error' ? (
+                                <div className="w-full max-w-[320px] mx-auto rounded-2xl border border-red-200 bg-red-50 p-5 text-center">
+                                    <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-3" />
+                                    <p className="text-sm font-medium text-red-700">QR code unavailable</p>
+                                    <p className="text-sm text-red-600 mt-2">
+                                        {errorMessage || 'The bridge could not be reached right now.'}
+                                    </p>
+                                    <button
+                                        onClick={() => window.location.reload()}
+                                        className="mt-4 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors"
+                                    >
+                                        <RefreshCw className="w-4 h-4" />
+                                        Retry
+                                    </button>
                                 </div>
                             ) : (
                                 <div className="relative max-w-[280px] mx-auto">
                                     <div className="bg-white rounded-2xl border-2 border-surface-200 p-3 shadow-inner">
-                                        <iframe
-                                            key={qrKey}
-                                            src={`${BRIDGE_URL}/qr?embed=1`}
-                                            className="w-full aspect-square border-0 rounded-xl"
-                                            title="WhatsApp QR Code"
+                                        <img
+                                            src={qrCode || ''}
+                                            className="w-full aspect-square rounded-xl border-0"
+                                            alt="WhatsApp QR Code"
                                         />
                                     </div>
                                     {/* Corner decorations */}
@@ -152,7 +199,7 @@ export default function ConnectPage() {
                         {/* Refresh hint */}
                         <div className="flex items-center justify-center gap-2 mt-6 text-xs text-surface-400">
                             <RefreshCw className="w-3 h-3" />
-                            <span>QR code refreshes automatically every 15 seconds</span>
+                            <span>QR code refreshes automatically every 5 seconds</span>
                         </div>
                     </div>
                 </div>

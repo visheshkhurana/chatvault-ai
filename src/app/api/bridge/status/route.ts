@@ -1,15 +1,6 @@
 import { NextResponse } from 'next/server';
 import { fetchBridgeStatus } from '@/lib/bridge-proxy';
 
-// ============================================================
-// Server-side Bridge Status Proxy
-// GET /api/bridge-status
-//
-// This endpoint calls the Baileys bridge from the server side,
-// completely bypassing CORS restrictions. The frontend can call
-// this as a fallback when direct browser→bridge requests fail.
-// ============================================================
-
 export async function GET() {
     try {
         const data = await fetchBridgeStatus();
@@ -23,7 +14,10 @@ export async function GET() {
                 error: err instanceof Error ? err.message : 'Bridge unreachable',
                 source: 'server-proxy',
             },
-            { status: 502 }
+            {
+                status: 502,
+                headers: { 'Cache-Control': 'no-store' },
+            }
         );
     }
 }
