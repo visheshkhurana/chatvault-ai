@@ -37,6 +37,8 @@ export default function SettingsSection() {
   const [waStatus, setWaStatus] = useState<WhatsAppStatus>({ connected: false, status: 'disconnected' });
   const [waLoading, setWaLoading] = useState(true);
   const [showQR, setShowQR] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [qrError, setQrError] = useState(false);
   const [googleCalConnected, setGoogleCalConnected] = useState(false);
   const [googleCalLoading, setGoogleCalLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
@@ -48,6 +50,13 @@ export default function SettingsSection() {
     const interval = setInterval(checkWhatsApp, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (!showQR || waStatus.connected) return;
+    fetchQrData();
+    const qrInterval = setInterval(fetchQrData, 5000);
+    return () => clearInterval(qrInterval);
+  }, [showQR, waStatus.connected]);
 
   // Check URL params for Google auth callback status
   useEffect(() => {
@@ -100,6 +109,40 @@ export default function SettingsSection() {
       setWaStatus({ connected: false, status: 'error' });
     }
     setWaLoading(false);
+  }
+
+  async function fetchQrData() {
+    try {
+      let data: any = null;
+      try {
+        const res = await fetch(BRIDGE_URL + '/qr-data');
+        if (res.ok) data = await res.json();
+      } catch {
+        // CORS — fall through to proxy
+      }
+      if (!data) {
+        try {
+          const proxyRes = await fetch('/api/bridge-qr');
+          if (proxyRes.ok) data = await proxyRes.json();
+        } catch {
+          // Proxy also failed
+        }
+      }
+      if (data?.status === 'connected') {
+        setWaStatus(prev => ({ ...prev, connected: true, status: 'connected' }));
+        setShowQR(false);
+        setQrDataUrl(null);
+        return;
+      }
+      if (data?.qr) {
+        setQrDataUrl(data.qr);
+        setQrError(false);
+      } else {
+        setQrDataUrl(null);
+      }
+    } catch {
+      setQrError(true);
+    }
   }
 
   async function checkGoogleCalendar() {
@@ -326,16 +369,33 @@ export default function SettingsSection() {
                       Open WhatsApp {'>'} Linked Devices {'>'} Link a Device
                     </p>
                     <div className="flex justify-center">
-                      <iframe
-                        src={BRIDGE_URL + '/qr?embed=1'}
-                        className="w-full max-w-[280px] aspect-square rounded-lg border-2 border-brand-200"
-                        title="WhatsApp QR Code"
-                      />
+                      {qrError ? (
+                        <div className="w-full max-w-[280px] aspect-square rounded-lg border-2 border-red-200 bg-red-50 flex items-center justify-center">
+                          <div className="text-center px-4">
+                            <WifiOff className="w-6 h-6 text-red-400 mx-auto mb-2" />
+                            <p className="text-xs text-red-600">Unable to reach bridge</p>
+                            <button onClick={fetchQrData} className="mt-2 text-xs text-red-700 underline hover:no-underline">Retry</button>
+                          </div>
+                        </div>
+                      ) : qrDataUrl ? (
+                        <img
+                          src={qrDataUrl}
+                          alt="WhatsApp QR Code"
+                          className="w-full max-w-[280px] aspect-square rounded-lg border-2 border-brand-200"
+                        />
+                      ) : (
+                        <div className="w-full max-w-[280px] aspect-square rounded-lg border-2 border-surface-200 flex items-center justify-center">
+                          <div className="text-center">
+                            <Loader2 className="w-6 h-6 text-brand-500 animate-spin mx-auto mb-2" />
+                            <p className="text-xs text-surface-400">Waiting for QR code...</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <p className="text-xs text-surface-400 mt-3">QR code refreshes automatically</p>
                   </div>
                   <button
-                    onClick={() => setShowQR(false)}
+                    onClick={() => { setShowQR(false); setQrDataUrl(null); setQrError(false); }}
                     className="w-full px-4 py-2 text-sm text-surface-600 hover:text-surface-800 transition-colors"
                   >
                     Cancel

@@ -6,6 +6,8 @@ import makeWASocket, {
     proto,
     downloadMediaMessage,
     getContentType,
+    fetchLatestBaileysVersion,
+    Browsers,
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import { createClient } from '@supabase/supabase-js';
@@ -113,6 +115,13 @@ app.get('/qr', (req: any, res: any) => {
         return res.send('<html><body style="display:flex;justify-content:center;align-items:center;height:100vh;margin:0;padding:0"><img src="' + qrCode + '" style="max-width:100%;max-height:100%;border:4px solid #3b82f6;border-radius:12px"/><script>setTimeout(()=>location.reload(),20000)<\/script></body></html>');
     }
     res.send('<html><body style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif"><div style="text-align:center"><h1>Scan QR with WhatsApp</h1><p>WhatsApp > Linked Devices > Link a Device</p><img src="' + qrCode + '" style="margin:20px;border:4px solid #3b82f6;border-radius:12px"/><script>setTimeout(()=>location.reload(),20000)<\/script></div></body></html>');
+});
+
+app.get('/qr-data', (_req: any, res: any) => {
+    res.json({
+        qr: qrCode,
+        status: connectionStatus,
+    });
 });
 
 app.get('/sync', (_req: any, res: any) => {
@@ -525,13 +534,22 @@ async function startBaileys() {
     connectionStatus = 'connecting';
     logger.info('Starting Baileys connection...');
 
+    let waVersion: [number, number, number] | undefined;
+    try {
+        const { version, isLatest } = await fetchLatestBaileysVersion();
+        waVersion = version as [number, number, number];
+        logger.info({ version, isLatest }, 'Fetched latest Baileys version');
+    } catch (err) {
+        logger.warn({ err }, 'Failed to fetch latest version, using library default');
+    }
+
     sock = makeWASocket({
         auth: state,
         logger: pino({ level: process.env.BAILEYS_LOG_LEVEL || 'warn' }),
-        
         printQRInTerminal: true,
-                browser: ['Ubuntu', 'Chrome', '20.0.04'],
-                connectTimeoutMs: 60000,        version: [2, 3000, 1033893291],
+        browser: Browsers.ubuntu('Chrome'),
+        connectTimeoutMs: 60000,
+        ...(waVersion ? { version: waVersion } : {}),
         syncFullHistory: true,
     });
 

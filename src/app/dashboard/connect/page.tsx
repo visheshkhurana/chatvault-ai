@@ -1,63 +1,94 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { MessageSquare, Smartphone, CheckCircle2, Loader2, ArrowRight, RefreshCw, Wifi } from 'lucide-react';
+import { MessageSquare, Smartphone, CheckCircle2, Loader2, ArrowRight, RefreshCw, Wifi, AlertCircle } from 'lucide-react';
 
 const BRIDGE_URL = process.env.NEXT_PUBLIC_BRIDGE_URL || 'https://chatvault-ai-production.up.railway.app';
 
 export default function ConnectPage() {
     const router = useRouter();
-    const [status, setStatus] = useState<'loading' | 'qr' | 'connected'>('loading');
-    const [qrKey, setQrKey] = useState(0);
+    const [status, setStatus] = useState<'loading' | 'qr' | 'connected' | 'error'>('loading');
+    const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+    const fetchQrAndStatus = useCallback(async () => {
+        try {
+            let statusData: any = null;
+
+            try {
+                const res = await fetch(`${BRIDGE_URL}/status`);
+                if (res.ok) statusData = await res.json();
+            } catch {
+                // CORS or network failure — fall through to proxy
+            }
+
+            if (!statusData) {
+                try {
+                    const proxyRes = await fetch('/api/bridge-status');
+                    if (proxyRes.ok) statusData = await proxyRes.json();
+                } catch {
+                    // Server proxy also failed
+                }
+            }
+
+            if (statusData?.connected) {
+                setStatus('connected');
+                setQrDataUrl(null);
+                return;
+            }
+
+            let qrData: any = null;
+            try {
+                const res = await fetch(`${BRIDGE_URL}/qr-data`);
+                if (res.ok) qrData = await res.json();
+            } catch {
+                // CORS — fall through to proxy
+            }
+
+            if (!qrData) {
+                try {
+                    const proxyRes = await fetch('/api/bridge-qr');
+                    if (proxyRes.ok) qrData = await proxyRes.json();
+                } catch {
+                    // Proxy also failed
+                }
+            }
+
+            if (qrData?.status === 'connected') {
+                setStatus('connected');
+                setQrDataUrl(null);
+                return;
+            }
+
+            if (qrData?.qr) {
+                setQrDataUrl(qrData.qr);
+                setStatus('qr');
+                setErrorMsg(null);
+            } else if (qrData?.status === 'connecting') {
+                setStatus('loading');
+                setErrorMsg(null);
+            } else {
+                setStatus('qr');
+                setQrDataUrl(null);
+                setErrorMsg(null);
+            }
+        } catch {
+            setStatus('error');
+            setErrorMsg('Unable to reach the WhatsApp bridge. Please try again later.');
+        }
+    }, []);
 
     useEffect(() => {
-        const checkStatus = async () => {
-            try {
-                let data: any = null;
-
-                // Try direct bridge call first
-                try {
-                    const res = await fetch(`${BRIDGE_URL}/status`);
-                    if (res.ok) data = await res.json();
-                } catch {
-                    // CORS or network failure — fall through to proxy
-                }
-
-                // Fall back to server-side proxy
-                if (!data) {
-                    try {
-                        const proxyRes = await fetch('/api/bridge-status');
-                        if (proxyRes.ok) data = await proxyRes.json();
-                    } catch {
-                        // Server proxy also failed
-                    }
-                }
-
-                if (data && data.connected) {
-                    setStatus('connected');
-                } else {
-                    setStatus('qr');
-                }
-            } catch {
-                setStatus('qr');
-            }
-        };
-
-        checkStatus();
-        const interval = setInterval(() => {
-            checkStatus();
-            setQrKey((k: number) => k + 1);
-        }, 15000);
-
+        fetchQrAndStatus();
+        const interval = setInterval(fetchQrAndStatus, 5000);
         return () => clearInterval(interval);
-    }, []);
+    }, [fetchQrAndStatus]);
 
     if (status === 'connected') {
         return (
             <div className="min-h-screen bg-surface-50 flex items-center justify-center p-6">
                 <div className="max-w-md w-full text-center animate-slide-up">
-                    {/* Success card */}
                     <div className="bg-white rounded-2xl shadow-xl shadow-surface-900/5 border border-surface-100 p-10">
                         <div className="w-20 h-20 bg-brand-50 border-2 border-brand-200 rounded-full flex items-center justify-center mx-auto mb-6">
                             <CheckCircle2 className="w-10 h-10 text-brand-600" />
@@ -86,7 +117,6 @@ export default function ConnectPage() {
     return (
         <div className="min-h-screen bg-surface-50 flex items-center justify-center p-6">
             <div className="max-w-lg w-full animate-slide-up">
-                {/* Connect card */}
                 <div className="bg-white rounded-2xl shadow-xl shadow-surface-900/5 border border-surface-100 overflow-hidden">
                     {/* Header */}
                     <div className="bg-surface-900 p-8 text-center relative overflow-hidden">
@@ -127,24 +157,42 @@ export default function ConnectPage() {
                                 <div className="w-full aspect-square max-w-[280px] mx-auto flex items-center justify-center bg-surface-50 rounded-2xl border border-surface-200">
                                     <div className="text-center">
                                         <Loader2 className="w-8 h-8 text-brand-500 animate-spin mx-auto mb-2" />
-                                        <p className="text-sm text-surface-400">Loading QR code...</p>
+                                        <p className="text-sm text-surface-400">Generating QR code...</p>
                                     </div>
                                 </div>
-                            ) : (
+                            ) : status === 'error' ? (
+                                <div className="w-full aspect-square max-w-[280px] mx-auto flex items-center justify-center bg-red-50 rounded-2xl border border-red-200">
+                                    <div className="text-center px-4">
+                                        <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-2" />
+                                        <p className="text-sm text-red-600">{errorMsg || 'Failed to load QR code'}</p>
+                                        <button
+                                            onClick={fetchQrAndStatus}
+                                            className="mt-3 text-sm text-red-700 underline hover:no-underline"
+                                        >
+                                            Retry
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : qrDataUrl ? (
                                 <div className="relative max-w-[280px] mx-auto">
                                     <div className="bg-white rounded-2xl border-2 border-surface-200 p-3 shadow-inner">
-                                        <iframe
-                                            key={qrKey}
-                                            src={`${BRIDGE_URL}/qr?embed=1`}
-                                            className="w-full aspect-square border-0 rounded-xl"
-                                            title="WhatsApp QR Code"
+                                        <img
+                                            src={qrDataUrl}
+                                            alt="WhatsApp QR Code"
+                                            className="w-full aspect-square rounded-xl"
                                         />
                                     </div>
-                                    {/* Corner decorations */}
                                     <div className="absolute -top-1 -left-1 w-4 h-4 border-t-2 border-l-2 border-brand-500 rounded-tl-lg" />
                                     <div className="absolute -top-1 -right-1 w-4 h-4 border-t-2 border-r-2 border-brand-500 rounded-tr-lg" />
                                     <div className="absolute -bottom-1 -left-1 w-4 h-4 border-b-2 border-l-2 border-brand-500 rounded-bl-lg" />
                                     <div className="absolute -bottom-1 -right-1 w-4 h-4 border-b-2 border-r-2 border-brand-500 rounded-br-lg" />
+                                </div>
+                            ) : (
+                                <div className="w-full aspect-square max-w-[280px] mx-auto flex items-center justify-center bg-surface-50 rounded-2xl border border-surface-200">
+                                    <div className="text-center">
+                                        <Loader2 className="w-8 h-8 text-brand-500 animate-spin mx-auto mb-2" />
+                                        <p className="text-sm text-surface-400">Waiting for QR code...</p>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -152,7 +200,7 @@ export default function ConnectPage() {
                         {/* Refresh hint */}
                         <div className="flex items-center justify-center gap-2 mt-6 text-xs text-surface-400">
                             <RefreshCw className="w-3 h-3" />
-                            <span>QR code refreshes automatically every 15 seconds</span>
+                            <span>QR code refreshes automatically every 5 seconds</span>
                         </div>
                     </div>
                 </div>
