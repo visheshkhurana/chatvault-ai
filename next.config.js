@@ -1,3 +1,23 @@
+const BRIDGE_URL = process.env.NEXT_PUBLIC_BRIDGE_URL || 'https://chatvault-ai-production.up.railway.app';
+const BRIDGE_ORIGIN = (() => {
+    try {
+        return new URL(BRIDGE_URL).origin;
+    } catch {
+        return 'https://chatvault-ai-production.up.railway.app';
+    }
+})();
+
+const CONTENT_SECURITY_POLICY = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: https:",
+    "font-src 'self' data:",
+    `connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co https://api.openai.com https://*.backblazeb2.com https://*.railway.app ${BRIDGE_ORIGIN}`,
+    `frame-src 'self' https://*.railway.app ${BRIDGE_ORIGIN}`,
+    "frame-ancestors 'none'",
+].join('; ');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     experimental: {
@@ -52,7 +72,7 @@ const nextConfig = {
                     },
                     {
                         key: 'Content-Security-Policy',
-                        value: "default-src 'self'; script-src 'self' 'unsafe-inline' ; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co https://api.openai.com https://*.backblazeb2.com https://*.railway.app; frame-ancestors 'none';",
+                        value: CONTENT_SECURITY_POLICY,
                     },
                 ],
             },
