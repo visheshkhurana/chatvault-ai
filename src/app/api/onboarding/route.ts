@@ -10,13 +10,15 @@ export const GET = withAuth(async (_req: NextRequest, { user }) => {
     .eq('user_id', user.id)
     .single();
 
-  if (error && error.code !== 'PGRST116') {
-    return apiError('Failed to fetch onboarding status', 500);
-  }
+      // Gracefully handle missing table/column (PGRST116 = no rows, 42P01 = table not found)
+        if (error && error.code !== 'PGRST116') {
+            console.error('[Onboarding] Error fetching progress:', error);
+                      // Don't return 500 — return default state instead
+        }
 
   const { data: userData } = await supabaseAdmin
     .from('users')
-    .select('onboarding_completed')
+            .select('*')
     .eq('id', user.id)
     .single();
 

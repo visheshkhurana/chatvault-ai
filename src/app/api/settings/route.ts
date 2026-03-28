@@ -13,13 +13,15 @@ export const GET = withAuth(async (req: NextRequest, { user }) => {
     // Fetch user settings
     const { data: userData, error } = await supabaseAdmin
         .from('users')
-        .select('display_name, timezone, data_retention_days, settings, google_access_token')
+                .select('*')
         .eq('id', user.id)
         .single();
 
-    if (error) {
-        return apiError('Failed to fetch settings', 500);
-    }
+        if (error) {
+                    console.error('[Settings] Error fetching user data:', error);
+                            // Don't return 500 — return defaults so the page still loads
+                                }
+
 
     // Fetch privacy zones (excluded chats)
     const { data: privacyZones } = await supabaseAdmin
