@@ -667,6 +667,54 @@ async function startBaileys() {
         }
     });
 
+        // Handle contacts.upsert — Baileys provides contact names (push names)
+        sock.ev.on('contacts.upsert', async (contacts: any[]) => {
+            try {
+                const userId = await ensureOwnerUser();
+                logger.info({ count: contacts.length }, 'contacts.upsert received');
+                for (const contact of contacts) {
+                    try {
+                        const jid = contact.id;
+                        if (!jid || jid === 'status@broadcast' || jid.endsWith('@g.us')) continue;
+                        const phone = jid.split('@')[0].split(':')[0];
+                        const name = contact.notify || contact.name || contact.verifiedName;
+                        if (phone && name) {
+                            await ensureContact(userId, phone, jid, name);
+                            syncStats.contacts++;
+                        }
+                    } catch (err) {
+                        // skip individual contact errors
+                    }
+                }
+                logger.info({ contacts: syncStats.contacts }, 'contacts.upsert processed');
+            } catch (err) {
+                logger.error({ err }, 'contacts.upsert processing error');
+            }
+        });
+
+        // Handle contacts.update — contact name changes
+        sock.ev.on('contacts.update', async (updates: any[]) => {
+            try {
+                const userId = await ensureOwnerUser();
+                logger.info({ count: updates.length }, 'contacts.update received');
+                for (const update of updates) {
+                    try {
+                        const jid = update.id;
+                        if (!jid || jid === 'status@broadcast' || jid.endsWith('@g.us')) continue;
+                        const phone = jid.split('@')[0].split(':')[0];
+                        const name = update.notify || update.name || update.verifiedName;
+                        if (phone && name) {
+                            await ensureContact(userId, phone, jid, name);
+                        }
+                    } catch (err) {
+                        // skip individual contact errors
+                    }
+                }
+            } catch (err) {
+                logger.error({ err }, 'contacts.update processing error');
+            }
+        });
+
         sock.ev.on('messages.upsert', async ({ messages, type }: any) => {
         const isHistory = type === 'append';
         if (type !== 'notify' && type !== 'append') return;
