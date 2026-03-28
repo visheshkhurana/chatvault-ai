@@ -563,15 +563,22 @@ async function startBaileys() {
                 // Send welcome message on first-ever connection
                 await sendWelcomeMessage();
 
+                                    // Start sync tracking — count all incoming messages
+                                                        syncStats.inProgress = true;
+                                                                            syncStats.startedAt = new Date();
+                                                                                                syncStats.messages = 0;
+                                                                                                                    syncStats.chats = 0;
+                                                                                                                                        syncStats.contacts = 0;
+
                             // Mark sync as complete if no history events arrive within 5 minutes
                                         // (newer Baileys versions may not fire messaging-history.set)
                                                     setTimeout(() => {
-                                                                  if (syncStats.inProgress && syncStats.messages === 0 && syncStats.chats === 0) {
-                                                                                  logger.warn('No history sync events received after 5 minutes — marking sync as complete. This may indicate syncFullHistory is not supported by this Baileys version.');
+                                                                  if (syncStats.inProgress) {
+                                                                                  logger.warn('Marking sync complete after 2 minutes — marking sync as complete. This may indicate syncFullHistory is not supported by this Baileys version.');
                                                                                                   syncStats.inProgress = false;
                                                                                                                   syncStats.completedAt = new Date();
                                                                                                                                 }
-                                                                                                                                            }, 5 * 60 * 1000);
+                                                                                                                                            }, 2 * 60 * 1000);
             } catch (err) {
                 logger.error({ err }, 'ensureOwnerUser failed');
             }
@@ -683,7 +690,7 @@ async function startBaileys() {
             // Store message in DB (independent of bot check)
             try {
                 await handleMessage(msg, isHistory);
-            if (isHistory) syncStats.messages++;
+            syncStats.messages++;
             } catch (err) {
                 const errMsg = err instanceof Error ? err.message : JSON.stringify(err);
                 logger.error({ err, id: msg.key.id }, 'Message store error');
