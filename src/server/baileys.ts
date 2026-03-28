@@ -220,7 +220,48 @@ app.post('/reconnect', async (req: any, res: any) => {
 });
 
 // ================================================================
-// Welcome Message on First Connection
+// Backfill contact names from stored messages
+    // ================================================================
+    app.post('/backfill-contacts', async (req: any, res: any) => {
+        try {
+            const userId = await ensureOwnerUser();
+            // Get distinct sender_name values that look like real names (not phone numbers)
+            const { data: messages, error } = await supabase
+                .from('messages')
+                .select('sender_phone, sender_name, contact_id')
+                .eq('user_id', userId)
+                .not('sender_name', 'is', null)
+                .order('created_at', { ascending: false });
+            if (error) throw error;
+            
+            const seen = new Set<string>();
+            let updated = 0;
+            for (const msg of (messages || [])) {
+                if (!msg.sender_phone || !msg.sender_name || seen.has(msg.sender_phone)) continue;
+                seen.add(msg.sender_phone);
+                // Skip if sender_name looks like a phone number
+                if (/^\d{7,}$/.test(msg.sender_name.replace(/\D/g, ''))) continue;
+                // Update contact display_name where it's currently just a phone number
+                const { data: contact } = await supabase
+                    .from('contacts')
+                    .select('id, display_name')
+                    .eq('user_id', userId)
+                    .eq('phone', msg.sender_phone)
+                    .single();
+                if (contact && /^\d{7,}$/.test((contact.display_name || '').replace(/\D/g, ''))) {
+                    await supabase.from('contacts').update({ display_name: msg.sender_name }).eq('id', contact.id);
+                    updated++;
+                }
+            }
+            res.json({ ok: true, updated, checked: seen.size });
+        } catch (err) {
+            logger.error({ err }, 'Backfill contacts failed');
+            res.status(500).json({ ok: false, error: 'Backfill failed' });
+        }
+    });
+
+    // ================================================================
+    // Welcome Message on First Connection
 // ================================================================
 
 app.use(express.json());
